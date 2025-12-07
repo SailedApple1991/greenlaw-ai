@@ -173,11 +173,22 @@ jobs:
               sudo apt install -y nginx certbot python3-certbot-nginx
             fi
 
-            # 创建 Greenlaw Nginx 配置
+            # 创建 Greenlaw Nginx 配置 (with SSL)
             sudo tee /etc/nginx/sites-available/greenlaw << 'EOF'
             server {
                 listen 80;
                 server_name greenlaw.sustain-nexus.com;
+                return 301 https://$host$request_uri;
+            }
+
+            server {
+                listen 443 ssl;
+                server_name greenlaw.sustain-nexus.com;
+
+                ssl_certificate /etc/letsencrypt/live/greenlaw.sustain-nexus.com/fullchain.pem;
+                ssl_certificate_key /etc/letsencrypt/live/greenlaw.sustain-nexus.com/privkey.pem;
+                include /etc/letsencrypt/options-ssl-nginx.conf;
+                ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
                 location / {
                     proxy_pass http://127.0.0.1:3000;
