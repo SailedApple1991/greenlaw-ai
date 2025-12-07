@@ -191,30 +191,44 @@ async def chat(request: ChatRequest):
         logger.info(f"Processing message for session: {session.id}")
         logger.info(f"User message: {request.message[:100]}...")
 
-        # Send message to RAGFlow using the official SDK
-        # Use non-streaming mode for stability (streaming has "Response ended prematurely" issues)
+        # Send message to RAGFlow using direct HTTP API (more stable than SDK streaming)
+        import requests as http_requests
         references_data = []
         content = ""
 
         try:
-            # Non-streaming mode - more stable
-            message_result = session.ask(question=request.message, stream=False)
+            logger.info("Calling RAGFlow HTTP API directly...")
 
-            # Handle generator (SDK may still return generator even with stream=False)
-            if hasattr(message_result, '__iter__') and not isinstance(message_result, (str, dict)):
-                for chunk in message_result:
-                    if hasattr(chunk, 'content'):
-                        content = chunk.content
-                    if hasattr(chunk, 'reference') and chunk.reference:
-                        references_data = chunk.reference
+            # Use RAGFlow HTTP API directly for more control
+            api_url = f"{RAGFLOW_BASE_URL}/api/v1/chats/{RAGFLOW_CHAT_ID}/completions"
+            headers = {
+                "Authorization": f"Bearer {RAGFLOW_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "question": request.message,
+                "stream": False,
+                "session_id": session.id
+            }
+
+            response = http_requests.post(api_url, headers=headers, json=payload, timeout=120)
+            response.raise_for_status()
+
+            result = response.json()
+            logger.info(f"RAGFlow API response: {result.get('code', 'no code')}")
+
+            if result.get("code") == 0:
+                data = result.get("data", {})
+                content = data.get("answer", "")
+                references_data = data.get("reference", {})
             else:
-                # Direct message object
-                content = message_result.content if hasattr(message_result, 'content') else str(message_result)
-                if hasattr(message_result, 'reference'):
-                    references_data = message_result.reference
+                raise ValueError(f"RAGFlow API error: {result.get('message', 'Unknown error')}")
 
-        except Exception as stream_error:
-            logger.warning(f"SDK call failed: {stream_error}, content so far: {content[:100] if content else 'empty'}")
+            logger.info(f"RAGFlow response received, content length: {len(content)}")
+
+        except Exception as api_error:
+            logger.error(f"RAGFlow API error: {api_error}")
+            raise api_error
 
         # Parse references from RAGFlow response
         references = parse_ragflow_references(references_data)
