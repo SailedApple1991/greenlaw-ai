@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     // Option 1: Use FastAPI backend (connects to RAGFlow)
     if (USE_FASTAPI_BACKEND) {
       try {
-        const backendResponse = await fetch(`${FASTAPI_BACKEND_URL}/api/chat`, {
+        const backendResponse = await fetch(`${FASTAPI_BACKEND_URL}/chat`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

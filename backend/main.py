@@ -162,7 +162,7 @@ def get_or_create_session(assistant, session_id: Optional[str] = None):
     return session
 
 
-@app.post("/api/chat", response_model=ChatResponse)
+@app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
     Chat endpoint that connects to RAGFlow API using official SDK
