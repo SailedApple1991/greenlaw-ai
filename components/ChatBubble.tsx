@@ -43,8 +43,8 @@ function CitationBadge({
     const viewportHeight = window.innerHeight;
 
     const tooltipWidth = 320; // w-80 = 20rem = 320px
-    const tooltipHeight = 100; // approximate height
-    const margin = 16; // spacing from edge
+    const tooltipHeight = 120; // approximate height with content
+    const margin = 20; // spacing from edge
 
     // Check available space in each direction
     const spaceTop = rect.top;
@@ -52,127 +52,161 @@ function CitationBadge({
     const spaceLeft = rect.left;
     const spaceRight = viewportWidth - rect.right;
 
-    // Calculate horizontal center position
-    const centerX = rect.left + rect.width / 2;
-    const halfTooltipWidth = tooltipWidth / 2;
+    // Determine position based on available space
+    // Priority: check which edges are close, then pick best direction
 
-    // Check if tooltip would overflow horizontally when centered
-    const wouldOverflowLeft = centerX - halfTooltipWidth < margin;
-    const wouldOverflowRight = centerX + halfTooltipWidth > viewportWidth - margin;
-
-    // Priority: prefer side positioning to avoid covering content below
-    // If near page edges or not enough vertical space, use left/right
-    if (spaceRight >= tooltipWidth + margin && (wouldOverflowLeft || spaceTop < tooltipHeight + margin)) {
-      setPosition("right");
-    } else if (spaceLeft >= tooltipWidth + margin && (wouldOverflowRight || spaceTop < tooltipHeight + margin)) {
-      setPosition("left");
-    } else if (spaceBottom >= tooltipHeight + margin && spaceTop < tooltipHeight + margin) {
+    // Near top edge of viewport -> show below
+    if (spaceTop < tooltipHeight + margin) {
       setPosition("bottom");
-    } else if (spaceTop >= tooltipHeight + margin) {
-      setPosition("top");
-    } else if (spaceRight >= tooltipWidth + margin) {
-      setPosition("right");
-    } else if (spaceLeft >= tooltipWidth + margin) {
-      setPosition("left");
-    } else {
-      // Default to bottom if nothing fits well
-      setPosition("bottom");
+      return;
     }
-  }, []);
 
-  const handleMouseEnter = useCallback(() => {
-    calculatePosition();
-    setIsVisible(true);
-  }, [calculatePosition]);
+    // Near bottom edge of viewport -> show above
+    if (spaceBottom < tooltipHeight + margin) {
+      setPosition("top");
+      return;
+    }
+
+    // Near left edge -> show right
+    if (spaceLeft < tooltipWidth / 2 + margin) {
+      if (spaceRight >= tooltipWidth + margin) {
+        setPosition("right");
+        return;
+      }
+    }
+
+    // Near right edge -> show left
+    if (spaceRight < tooltipWidth / 2 + margin) {
+      if (spaceLeft >= tooltipWidth + margin) {
+        setPosition("left");
+        return;
+      }
+    }
+
+    // Default: show above (most common case for inline content)
+    setPosition("top");
+  }, []);
 
   const handleMouseLeave = useCallback(() => {
     setIsVisible(false);
   }, []);
 
-  // Get tooltip position classes based on calculated position
+  // Calculate tooltip style with fixed positioning to avoid clipping
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
+
+  // Update tooltip position using fixed positioning
+  const updateTooltipStyle = useCallback(() => {
+    if (!badgeRef.current) return;
+
+    const rect = badgeRef.current.getBoundingClientRect();
+    const tooltipWidth = 320;
+    const tooltipHeight = 120;
+    const gap = 8;
+
+    const style: React.CSSProperties = {
+      position: 'fixed',
+      width: tooltipWidth,
+      zIndex: 9999,
+    };
+
+    switch (position) {
+      case "top":
+        style.left = rect.left + rect.width / 2 - tooltipWidth / 2;
+        style.top = rect.top - tooltipHeight - gap;
+        // Prevent horizontal overflow
+        if ((style.left as number) < 10) style.left = 10;
+        if ((style.left as number) + tooltipWidth > window.innerWidth - 10) {
+          style.left = window.innerWidth - tooltipWidth - 10;
+        }
+        break;
+      case "bottom":
+        style.left = rect.left + rect.width / 2 - tooltipWidth / 2;
+        style.top = rect.bottom + gap;
+        if ((style.left as number) < 10) style.left = 10;
+        if ((style.left as number) + tooltipWidth > window.innerWidth - 10) {
+          style.left = window.innerWidth - tooltipWidth - 10;
+        }
+        break;
+      case "left":
+        style.left = rect.left - tooltipWidth - gap;
+        style.top = rect.top + rect.height / 2 - tooltipHeight / 2;
+        break;
+      case "right":
+        style.left = rect.right + gap;
+        style.top = rect.top + rect.height / 2 - tooltipHeight / 2;
+        break;
+    }
+
+    setTooltipStyle(style);
+  }, [position]);
+
+  // Handle mouse enter - calculate position and show tooltip
+  const handleMouseEnter = useCallback(() => {
+    calculatePosition();
+    setIsVisible(true);
+    // Delay style calculation to ensure position is set
+    setTimeout(() => updateTooltipStyle(), 0);
+  }, [calculatePosition, updateTooltipStyle]);
+
+  // Get tooltip classes (without positioning, just appearance)
   const getTooltipClasses = () => {
-    const baseClasses = "pointer-events-none absolute w-80 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50 transition-all duration-200";
+    const baseClasses = "pointer-events-none p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl transition-all duration-200";
     const visibilityClasses = isVisible ? "visible opacity-100" : "invisible opacity-0";
-
-    switch (position) {
-      case "top":
-        return `${baseClasses} ${visibilityClasses} bottom-full left-1/2 -translate-x-1/2 mb-2`;
-      case "bottom":
-        return `${baseClasses} ${visibilityClasses} top-full left-1/2 -translate-x-1/2 mt-2`;
-      case "left":
-        return `${baseClasses} ${visibilityClasses} right-full top-1/2 -translate-y-1/2 mr-2`;
-      case "right":
-        return `${baseClasses} ${visibilityClasses} left-full top-1/2 -translate-y-1/2 ml-2`;
-      default:
-        return `${baseClasses} ${visibilityClasses} bottom-full left-1/2 -translate-x-1/2 mb-2`;
-    }
+    return `${baseClasses} ${visibilityClasses}`;
   };
 
-  // Get arrow classes based on position
-  const getArrowClasses = () => {
-    switch (position) {
-      case "top":
-        return "absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-gray-900";
-      case "bottom":
-        return "absolute bottom-full left-1/2 -translate-x-1/2 border-8 border-transparent border-b-gray-900";
-      case "left":
-        return "absolute left-full top-1/2 -translate-y-1/2 border-8 border-transparent border-l-gray-900";
-      case "right":
-        return "absolute right-full top-1/2 -translate-y-1/2 border-8 border-transparent border-r-gray-900";
-      default:
-        return "absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-gray-900";
-    }
-  };
+  // Tooltip component (rendered with fixed positioning via portal-like behavior)
+  const TooltipContent = () => (
+    <span
+      className={getTooltipClasses()}
+      style={tooltipStyle}
+    >
+      <span className="font-semibold text-emerald-400 block mb-1">
+        [{number}] {label || ''}
+      </span>
+      <span className="leading-relaxed">{displayTooltip}</span>
+    </span>
+  );
 
   // If label exists, show "Label [number]" style badge
   if (label) {
     return (
-      <span
-        ref={badgeRef}
-        className="relative inline-flex items-center bg-emerald-50 dark:bg-emerald-900/30 rounded-md px-2 py-0.5 mx-0.5 border border-emerald-200 dark:border-emerald-800 cursor-help"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
-        <span className="text-emerald-600 dark:text-emerald-400 font-medium text-sm">
-          {label}
-        </span>
-        <span className="text-emerald-500 dark:text-emerald-300 text-xs ml-1 font-semibold">
-          [{number}]
-        </span>
-
-        {/* Smart Positioned Tooltip */}
-        <span className={getTooltipClasses()}>
-          <span className="font-semibold text-emerald-400 block mb-1">
-            [{number}] {label}
+      <>
+        <span
+          ref={badgeRef}
+          className="relative inline-flex items-center bg-emerald-50 dark:bg-emerald-900/30 rounded-md px-2 py-0.5 mx-0.5 border border-emerald-200 dark:border-emerald-800 cursor-help"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <span className="text-emerald-600 dark:text-emerald-400 font-medium text-sm">
+            {label}
           </span>
-          <span className="leading-relaxed">{displayTooltip}</span>
-          <span className={getArrowClasses()}></span>
+          <span className="text-emerald-500 dark:text-emerald-300 text-xs ml-1 font-semibold">
+            [{number}]
+          </span>
         </span>
-      </span>
+        {/* Fixed position tooltip */}
+        {isVisible && <TooltipContent />}
+      </>
     );
   }
 
   // No label - just show "[number]" badge
   return (
-    <span
-      ref={badgeRef}
-      className="relative inline-block ml-0.5 align-baseline"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <span className="cursor-pointer text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300 px-1.5 py-0.5 rounded hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-500 transition-colors">
-        [{number}]
-      </span>
-
-      {/* Smart Positioned Tooltip */}
-      <span className={getTooltipClasses()}>
-        <span className="font-semibold text-emerald-400 block mb-1">
+    <>
+      <span
+        ref={badgeRef}
+        className="relative inline-block ml-0.5 align-baseline"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        <span className="cursor-pointer text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300 px-1.5 py-0.5 rounded hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-500 transition-colors">
           [{number}]
         </span>
-        <span className="leading-relaxed">{displayTooltip}</span>
-        <span className={getArrowClasses()}></span>
       </span>
-    </span>
+      {/* Fixed position tooltip */}
+      {isVisible && <TooltipContent />}
+    </>
   );
 }
 
