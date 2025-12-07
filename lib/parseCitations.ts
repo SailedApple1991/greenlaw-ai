@@ -24,7 +24,8 @@ export function parseCitations(content: string): ParsedContent {
   const references: ParsedReference[] = [];
 
   // Split content into main content and references section
-  const refSectionMatch = content.match(/##\s*References?\s*\n([\s\S]+)$/i);
+  // Match various formats: ## References, **References**, 2. References, References:, etc.
+  const refSectionMatch = content.match(/(?:^|\n)(?:#{1,3}\s*|\*{2}|\d+\.\s*)?References?\*{0,2}:?\s*\n([\s\S]+)$/im);
   let mainContent = content;
 
   if (refSectionMatch) {
