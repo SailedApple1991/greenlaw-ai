@@ -295,16 +295,16 @@ def parse_ragflow_references(reference_data) -> List[Reference]:
 
 def parse_citations_from_content(content: str) -> dict:
     """
-    Parse citations from Gemini-style format: [Citation Name]^[Number]
-    Returns content with HTML-formatted citations and references list
+    Parse citations from content - extract references section only.
+    Returns raw markdown content (no HTML conversion) + references list.
+    Frontend will handle markdown rendering and citation formatting.
     """
     import re
 
     # Extract references section
-    ref_section_match = re.search(r'##\s*References\s*\n([\s\S]+)$', content, re.IGNORECASE)
+    ref_section_match = re.search(r'##\s*References?\s*\n([\s\S]+)$', content, re.IGNORECASE)
     main_content = content
     references = []
-    citation_map = {}
 
     if ref_section_match:
         main_content = content[:ref_section_match.start()].strip()
@@ -314,30 +314,19 @@ def parse_citations_from_content(content: str) -> dict:
         ref_matches = re.finditer(r'\[(\d+)\]\s*(.+?)(?=\n\[|\n*$)', ref_section, re.MULTILINE | re.DOTALL)
         for match in ref_matches:
             number = match.group(1)
-            text = match.group(2).strip()
-            citation_map[number] = text
+            full_text = match.group(2).strip()
+
             references.append(Reference(
-                text=f"Reference {number}",
-                tooltip=text
+                text=full_text,   # Full citation text
+                tooltip=number    # Reference number
             ))
 
-    # Convert inline citations to HTML format
-    citation_pattern = r'\[([^\]]+)\]\^\[(\d+)\]'
-    def replace_citation(match):
-        citation_text = match.group(1)
-        number = match.group(2)
-        full_ref = citation_map.get(number, "Reference not found")
-        return f'<span class="citation-tooltip inline-flex items-center bg-blue-50 dark:bg-blue-900/30 rounded-md px-2 py-0.5 mx-0.5 border border-blue-200 dark:border-blue-800 cursor-help relative group"><span class="text-blue-600 dark:text-blue-400 font-medium text-sm">{citation_text}</span><span class="citation-number text-blue-500 dark:text-blue-300 text-xs ml-1 font-semibold">[{number}]</span><span class="tooltip-content invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-sm text-white bg-gray-900 rounded-lg shadow-lg max-w-xs whitespace-normal">{full_ref}<span class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></span></span></span>'
-
-    formatted_content = re.sub(citation_pattern, replace_citation, main_content)
-
-    # Build citation text
-    citation_text = "\n".join([f"[{ref.text}] {ref.tooltip}" for ref in references])
-
+    # Return raw markdown - no HTML conversion
+    # Frontend will handle citation markers like [Text]^[1] and {{CITATION:1:}}
     return {
-        "content": formatted_content,
+        "content": main_content,
         "references": references,
-        "citation": citation_text
+        "citation": ""
     }
 
 

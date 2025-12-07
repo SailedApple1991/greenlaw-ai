@@ -1,66 +1,133 @@
 export interface ParsedReference {
   number: string;
-  text: string;
+  title: string;      // Short title (first line or extracted name)
+  description: string; // Full description
+  text: string;       // Original full text
 }
 
 export interface ParsedContent {
   mainContent: string;
   references: ParsedReference[];
-  citationMap: Map<string, string>; // citation number -> full reference text
+  citationMap: Map<string, ParsedReference>;
 }
 
 /**
- * Parse Gemini's response to extract inline citations and references
- * Format: [Citation Name]^[1] for inline, and ## References section with [1] entries
+ * Parse AI response to extract inline citations and references
+ * Supports formats:
+ *   - [Citation Name]^[1] (Gemini style)
+ *   - {{CITATION:1:Label}} (RAGFlow style)
+ *   - ^[1] (superscript only)
+ *   - [1] (bracket only in references section)
  */
 export function parseCitations(content: string): ParsedContent {
-  const citationMap = new Map<string, string>();
+  const citationMap = new Map<string, ParsedReference>();
   const references: ParsedReference[] = [];
-  
+
   // Split content into main content and references section
-  const refSectionMatch = content.match(/##\s*References\s*\n([\s\S]+)$/i);
+  const refSectionMatch = content.match(/##\s*References?\s*\n([\s\S]+)$/i);
   let mainContent = content;
-  
+
   if (refSectionMatch) {
     // Extract main content (everything before ## References)
     mainContent = content.substring(0, refSectionMatch.index).trim();
-    
+
     // Parse references section
     const refSection = refSectionMatch[1];
     const refMatches = refSection.matchAll(/\[(\d+)\]\s*(.+?)(?=\n\[|\n*$)/gs);
-    
+
     for (const match of refMatches) {
       const number = match[1];
-      const text = match[2].trim();
-      citationMap.set(number, text);
-      references.push({ number, text });
+      const fullText = match[2].trim();
+
+      // Extract title and description
+      const { title, description } = extractTitleAndDescription(fullText);
+
+      const ref: ParsedReference = {
+        number,
+        title,
+        description,
+        text: fullText
+      };
+
+      citationMap.set(number, ref);
+      references.push(ref);
     }
   }
-  
+
   return { mainContent, references, citationMap };
 }
 
 /**
- * Convert inline citations to HTML with hover tooltips
- * Converts [Citation Name]^[1] to styled span with tooltip
+ * Extract a short title and description from reference text
  */
-export function renderInlineCitations(
+function extractTitleAndDescription(text: string): { title: string; description: string } {
+  // Try to extract title from common patterns
+  // Pattern 1: "Title: Description" or "Title - Description"
+  const colonMatch = text.match(/^([^:–—-]+)[:\-–—]\s*(.+)$/s);
+  if (colonMatch) {
+    return {
+      title: colonMatch[1].trim().substring(0, 80),
+      description: colonMatch[2].trim()
+    };
+  }
+
+  // Pattern 2: First sentence as title
+  const sentenceMatch = text.match(/^([^.!?]+[.!?])\s*(.*)$/s);
+  if (sentenceMatch && sentenceMatch[1].length <= 100) {
+    return {
+      title: sentenceMatch[1].trim(),
+      description: sentenceMatch[2].trim() || sentenceMatch[1].trim()
+    };
+  }
+
+  // Fallback: First 60 chars as title
+  const title = text.length > 60 ? text.substring(0, 60) + '...' : text;
+  return { title, description: text };
+}
+
+/**
+ * Process content to convert citation markers to React-compatible format
+ * Returns content with citation placeholders that will be replaced by React components
+ * Supports:
+ *   - [Citation Text]^[Number] → {{CITATION:number:CitationText}}
+ *   - ^[Number] → {{CITATION:number:}}
+ *   - {{CITATION:number:label}} (already in correct format, kept as-is)
+ */
+export function processCitationsForReact(
   content: string,
-  citationMap: Map<string, string>
+  _citationMap: Map<string, ParsedReference>
 ): string {
-  // Match pattern: [Citation Text]^[Number]
-  const citationPattern = /\[([^\]]+)\]\^\[(\d+)\]/g;
-  
-  return content.replace(citationPattern, (match, citationText, number) => {
-    const fullRef = citationMap.get(number) || "Reference not found";
-    
-    return `<span class="citation-tooltip inline-flex items-center bg-blue-50 dark:bg-blue-900/30 rounded-md px-2 py-0.5 mx-0.5 border border-blue-200 dark:border-blue-800 cursor-help relative group">
-      <span class="text-blue-600 dark:text-blue-400 font-medium text-sm">${citationText}</span>
-      <span class="citation-number text-blue-500 dark:text-blue-300 text-xs ml-1 font-semibold">[${number}]</span>
-      <span class="tooltip-content invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-sm text-white bg-gray-900 rounded-lg shadow-lg max-w-xs whitespace-normal">
-        ${fullRef}
-        <span class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></span>
-      </span>
-    </span>`;
-  });
+  let processed = content;
+
+  // Pattern 1: [Citation Text]^[Number] - Full citation with name (Gemini style)
+  processed = processed.replace(
+    /\[([^\]]+)\]\^\[(\d+)\]/g,
+    (_, citationText, number) => {
+      return `{{CITATION:${number}:${citationText}}}`;
+    }
+  );
+
+  // Pattern 2: ^[Number] - Superscript only
+  processed = processed.replace(
+    /\^\[(\d+)\]/g,
+    (_, number) => {
+      return `{{CITATION:${number}:}}`;
+    }
+  );
+
+  // {{CITATION:number:label}} format is already correct (RAGFlow style)
+  // No conversion needed
+
+  return processed;
+}
+
+/**
+ * Parse citation placeholder back to components data
+ */
+export function parseCitationPlaceholder(text: string): { number: string; label: string } | null {
+  const match = text.match(/\{\{CITATION:(\d+):([^}]*)\}\}/);
+  if (match) {
+    return { number: match[1], label: match[2] };
+  }
+  return null;
 }

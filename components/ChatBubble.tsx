@@ -1,122 +1,415 @@
+"use client";
+
 import { Message } from "@/app/page";
-import { useMemo } from "react";
-import { parseCitations, renderInlineCitations } from "@/lib/parseCitations";
+import { useMemo, useCallback, useState, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import {
+  parseCitations,
+  processCitationsForReact,
+  ParsedReference,
+} from "@/lib/parseCitations";
 
 interface ChatBubbleProps {
   message: Message;
   delay?: number;
 }
 
-// Enhanced markdown to HTML converter with better formatting
-function markdownToHtml(text: string): string {
-  let html = text;
+// Tooltip position types
+type TooltipPosition = "top" | "bottom" | "left" | "right";
 
-  // Headers with enhanced styling
-  html = html.replace(
-    /^### (.+)$/gm,
-    '<h3 class="text-xl font-bold mt-6 mb-4 pb-2 text-emerald-700 dark:text-emerald-400 border-b-2 border-emerald-200 dark:border-emerald-800">$1</h3>'
-  );
-  html = html.replace(
-    /^## (.+)$/gm,
-    '<h2 class="text-2xl font-bold mt-7 mb-4 text-gray-900 dark:text-white">$1</h2>'
-  );
-  html = html.replace(
-    /^# (.+)$/gm,
-    '<h1 class="text-3xl font-bold mt-8 mb-5 text-gray-900 dark:text-white">$1</h1>'
-  );
+// Citation Badge Component with Smart Tooltip Positioning
+function CitationBadge({
+  number,
+  label,
+  tooltipText,
+}: {
+  number: string;
+  label?: string;
+  tooltipText?: string;
+}) {
+  const displayTooltip = tooltipText || `Reference ${number}`;
+  const badgeRef = useRef<HTMLSpanElement>(null);
+  const [position, setPosition] = useState<TooltipPosition>("top");
+  const [isVisible, setIsVisible] = useState(false);
 
-  // Bold and italic with better contrast
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-white">$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em class="italic text-gray-800 dark:text-gray-200">$1</em>');
+  // Calculate best position for tooltip based on viewport
+  const calculatePosition = useCallback(() => {
+    if (!badgeRef.current) return;
 
-  // Code blocks inline
-  html = html.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-sm font-mono text-emerald-600 dark:text-emerald-400">$1</code>');
+    const rect = badgeRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
 
-  // Lists with better spacing
-  const lines = html.split('\n');
-  let inList = false;
-  const processed: string[] = [];
+    const tooltipWidth = 320; // w-80 = 20rem = 320px
+    const tooltipHeight = 100; // approximate height
+    const margin = 16; // spacing from edge
 
-  for (const line of lines) {
-    const listMatch = line.match(/^\s*(\*|-)\s+(.+)$/);
-    if (listMatch) {
-      if (!inList) {
-        processed.push('<ul class="list-disc list-inside ml-6 space-y-2 my-4 marker:text-emerald-500 dark:marker:text-emerald-400">');
-        inList = true;
-      }
-      processed.push(`<li class="text-gray-700 dark:text-gray-300 leading-relaxed">${listMatch[2]}</li>`);
+    // Check available space in each direction
+    const spaceTop = rect.top;
+    const spaceBottom = viewportHeight - rect.bottom;
+    const spaceLeft = rect.left;
+    const spaceRight = viewportWidth - rect.right;
+
+    // Calculate horizontal center position
+    const centerX = rect.left + rect.width / 2;
+    const halfTooltipWidth = tooltipWidth / 2;
+
+    // Check if tooltip would overflow horizontally when centered
+    const wouldOverflowLeft = centerX - halfTooltipWidth < margin;
+    const wouldOverflowRight = centerX + halfTooltipWidth > viewportWidth - margin;
+
+    // Priority: prefer side positioning to avoid covering content below
+    // If near page edges or not enough vertical space, use left/right
+    if (spaceRight >= tooltipWidth + margin && (wouldOverflowLeft || spaceTop < tooltipHeight + margin)) {
+      setPosition("right");
+    } else if (spaceLeft >= tooltipWidth + margin && (wouldOverflowRight || spaceTop < tooltipHeight + margin)) {
+      setPosition("left");
+    } else if (spaceBottom >= tooltipHeight + margin && spaceTop < tooltipHeight + margin) {
+      setPosition("bottom");
+    } else if (spaceTop >= tooltipHeight + margin) {
+      setPosition("top");
+    } else if (spaceRight >= tooltipWidth + margin) {
+      setPosition("right");
+    } else if (spaceLeft >= tooltipWidth + margin) {
+      setPosition("left");
     } else {
-      if (inList && line.trim() === '') {
-        processed.push('</ul>');
-        inList = false;
-      }
-      processed.push(line);
+      // Default to bottom if nothing fits well
+      setPosition("bottom");
     }
+  }, []);
+
+  const handleMouseEnter = useCallback(() => {
+    calculatePosition();
+    setIsVisible(true);
+  }, [calculatePosition]);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsVisible(false);
+  }, []);
+
+  // Get tooltip position classes based on calculated position
+  const getTooltipClasses = () => {
+    const baseClasses = "pointer-events-none absolute w-80 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50 transition-all duration-200";
+    const visibilityClasses = isVisible ? "visible opacity-100" : "invisible opacity-0";
+
+    switch (position) {
+      case "top":
+        return `${baseClasses} ${visibilityClasses} bottom-full left-1/2 -translate-x-1/2 mb-2`;
+      case "bottom":
+        return `${baseClasses} ${visibilityClasses} top-full left-1/2 -translate-x-1/2 mt-2`;
+      case "left":
+        return `${baseClasses} ${visibilityClasses} right-full top-1/2 -translate-y-1/2 mr-2`;
+      case "right":
+        return `${baseClasses} ${visibilityClasses} left-full top-1/2 -translate-y-1/2 ml-2`;
+      default:
+        return `${baseClasses} ${visibilityClasses} bottom-full left-1/2 -translate-x-1/2 mb-2`;
+    }
+  };
+
+  // Get arrow classes based on position
+  const getArrowClasses = () => {
+    switch (position) {
+      case "top":
+        return "absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-gray-900";
+      case "bottom":
+        return "absolute bottom-full left-1/2 -translate-x-1/2 border-8 border-transparent border-b-gray-900";
+      case "left":
+        return "absolute left-full top-1/2 -translate-y-1/2 border-8 border-transparent border-l-gray-900";
+      case "right":
+        return "absolute right-full top-1/2 -translate-y-1/2 border-8 border-transparent border-r-gray-900";
+      default:
+        return "absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-gray-900";
+    }
+  };
+
+  // If label exists, show "Label [number]" style badge
+  if (label) {
+    return (
+      <span
+        ref={badgeRef}
+        className="relative inline-flex items-center bg-emerald-50 dark:bg-emerald-900/30 rounded-md px-2 py-0.5 mx-0.5 border border-emerald-200 dark:border-emerald-800 cursor-help"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        <span className="text-emerald-600 dark:text-emerald-400 font-medium text-sm">
+          {label}
+        </span>
+        <span className="text-emerald-500 dark:text-emerald-300 text-xs ml-1 font-semibold">
+          [{number}]
+        </span>
+
+        {/* Smart Positioned Tooltip */}
+        <span className={getTooltipClasses()}>
+          <span className="font-semibold text-emerald-400 block mb-1">
+            [{number}] {label}
+          </span>
+          <span className="leading-relaxed">{displayTooltip}</span>
+          <span className={getArrowClasses()}></span>
+        </span>
+      </span>
+    );
   }
-  if (inList) processed.push('</ul>');
 
-  html = processed.join('\n');
+  // No label - just show "[number]" badge
+  return (
+    <span
+      ref={badgeRef}
+      className="relative inline-block ml-0.5 align-baseline"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <span className="cursor-pointer text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300 px-1.5 py-0.5 rounded hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-500 transition-colors">
+        [{number}]
+      </span>
 
-  // Paragraphs with better line height and spacing
-  html = html.split('\n\n').map(para => {
-    para = para.trim();
-    if (para && !para.match(/^<[uh]/)) {
-      return `<p class="mb-4 text-gray-700 dark:text-gray-300 leading-7 text-justify">${para}</p>`;
-    }
-    return para;
-  }).join('\n');
+      {/* Smart Positioned Tooltip */}
+      <span className={getTooltipClasses()}>
+        <span className="font-semibold text-emerald-400 block mb-1">
+          [{number}]
+        </span>
+        <span className="leading-relaxed">{displayTooltip}</span>
+        <span className={getArrowClasses()}></span>
+      </span>
+    </span>
+  );
+}
 
-  // Convert single newlines to <br/> but preserve structure
-  html = html.replace(/\n(?!<)/g, '<br />');
+// References Section Component
+function ReferencesSection({
+  references,
+}: {
+  references: ParsedReference[];
+}) {
+  if (references.length === 0) return null;
 
-  return html;
+  const scrollToRef = (_number: string) => {
+    // Optional: implement scroll to reference functionality
+  };
+
+  return (
+    <div className="references-section bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 mt-4">
+      <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+          />
+        </svg>
+        References
+      </h4>
+
+      <ul className="space-y-2">
+        {references.map((ref) => (
+          <li
+            key={ref.number}
+            id={`ref-${ref.number}`}
+            className="text-sm p-2.5 hover:bg-white dark:hover:bg-gray-800 hover:shadow-sm rounded-md transition-all cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
+            onClick={() => scrollToRef(ref.number)}
+          >
+            <span className="text-gray-700 dark:text-gray-300 leading-relaxed">
+              <span className="cursor-pointer text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300 px-1.5 py-0.5 rounded mr-2">
+                [{ref.number}]
+              </span>
+              {ref.text}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Custom renderer for markdown with citation support
+function MarkdownContent({
+  content,
+  citationMap,
+}: {
+  content: string;
+  citationMap: Map<string, ParsedReference>;
+}) {
+  // Process citations in the content
+  const processedContent = useMemo(() => {
+    return processCitationsForReact(content, citationMap);
+  }, [content, citationMap]);
+
+  // Custom component to render text with citations
+  const renderTextWithCitations = useCallback(
+    (text: string) => {
+      const parts = text.split(/(\{\{CITATION:\d+:[^}]*\}\})/g);
+
+      return parts.map((part, index) => {
+        const citationMatch = part.match(/\{\{CITATION:(\d+):([^}]*)\}\}/);
+        if (citationMatch) {
+          const [, number, label] = citationMatch;
+          const reference = citationMap.get(number);
+          return (
+            <CitationBadge
+              key={index}
+              number={number}
+              label={label || undefined}
+              tooltipText={reference?.text}
+            />
+          );
+        }
+        return <span key={index}>{part}</span>;
+      });
+    },
+    [citationMap]
+  );
+
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeRaw]}
+      components={{
+        // Paragraph styling
+        p: ({ children }) => (
+          <p className="mb-4 text-gray-700 dark:text-gray-300 leading-[1.7] text-[15px]">
+            {typeof children === "string"
+              ? renderTextWithCitations(children)
+              : children}
+          </p>
+        ),
+
+        // Headers
+        h1: ({ children }) => (
+          <h1 className="text-2xl font-bold mt-6 mb-4 text-gray-900 dark:text-white">
+            {children}
+          </h1>
+        ),
+        h2: ({ children }) => (
+          <h2 className="text-xl font-bold mt-5 mb-3 text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
+            {children}
+          </h2>
+        ),
+        h3: ({ children }) => (
+          <h3 className="text-lg font-semibold mt-4 mb-2 text-emerald-700 dark:text-emerald-400">
+            {children}
+          </h3>
+        ),
+
+        // Lists
+        ul: ({ children }) => (
+          <ul className="list-disc list-outside ml-5 space-y-2 my-4 marker:text-emerald-500">
+            {children}
+          </ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="list-decimal list-outside ml-5 space-y-2 my-4 marker:text-emerald-600">
+            {children}
+          </ol>
+        ),
+        li: ({ children }) => (
+          <li className="text-gray-700 dark:text-gray-300 leading-relaxed pl-1">
+            {typeof children === "string"
+              ? renderTextWithCitations(children)
+              : children}
+          </li>
+        ),
+
+        // Strong and emphasis
+        strong: ({ children }) => (
+          <strong className="font-semibold text-gray-900 dark:text-white">
+            {children}
+          </strong>
+        ),
+        em: ({ children }) => (
+          <em className="italic text-gray-800 dark:text-gray-200">{children}</em>
+        ),
+
+        // Code
+        code: ({ className, children }) => {
+          const isInline = !className;
+          if (isInline) {
+            return (
+              <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-sm font-mono text-emerald-600 dark:text-emerald-400">
+                {children}
+              </code>
+            );
+          }
+          return (
+            <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono my-4">
+              {children}
+            </code>
+          );
+        },
+
+        // Blockquote
+        blockquote: ({ children }) => (
+          <blockquote className="border-l-4 border-emerald-500 pl-4 py-2 my-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-r-lg italic text-gray-700 dark:text-gray-300">
+            {children}
+          </blockquote>
+        ),
+
+        // Links
+        a: ({ href, children }) => (
+          <a
+            href={href}
+            className="text-emerald-600 dark:text-emerald-400 hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {children}
+          </a>
+        ),
+
+        // Handle text nodes to process citations
+        text: ({ children }) => {
+          if (typeof children === "string") {
+            return <>{renderTextWithCitations(children)}</>;
+          }
+          return <>{children}</>;
+        },
+      }}
+    >
+      {processedContent}
+    </ReactMarkdown>
+  );
 }
 
 export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
   const isUser = message.role === "user";
 
-  const content = useMemo(() => {
-    // For user messages, just return plain text
+  // Parse content for AI messages
+  const parsedContent = useMemo(() => {
     if (isUser) {
-      return { html: message.content, hasReferences: false };
+      return null;
     }
 
-    // Check if using OLD format (message.references array exists)
+    // Parse citations from the message content
+    const { mainContent, references, citationMap } = parseCitations(
+      message.content
+    );
+
+    // Merge backend references into citationMap (for tooltip display)
+    // Backend returns: { text: "full citation text", tooltip: "number" }
     if (message.references && message.references.length > 0) {
-      // Handle old format with HTML spans
-      let html = message.content;
       message.references.forEach((ref, index) => {
-        const placeholder = `<span class="quote-ref" data-ref="${index}">${ref.text}</span>`;
-        html = html.replace(
-          placeholder,
-          `<span class="citation-tooltip inline-flex items-center bg-blue-50 dark:bg-blue-900/30 rounded-md px-2 py-0.5 mx-0.5 border border-blue-200 dark:border-blue-800 cursor-help relative group">
-            <span class="text-blue-600 dark:text-blue-400 font-medium text-sm">${ref.text}</span>
-            <span class="tooltip-content invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-sm text-white bg-gray-900 rounded-lg shadow-lg max-w-xs whitespace-normal">
-              ${ref.tooltip}
-              <span class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></span>
-            </span>
-          </span>`
-        );
+        const number = ref.tooltip || String(index + 1);
+        if (!citationMap.has(number)) {
+          citationMap.set(number, {
+            number,
+            title: ref.text.substring(0, 60),
+            description: ref.text,
+            text: ref.text
+          });
+        }
       });
-      return { html, hasReferences: false, usesOldFormat: true };
     }
 
-    // NEW format: Parse citations from AI response
-    const { mainContent, references, citationMap } = parseCitations(message.content);
-    
-    // Convert markdown to HTML
-    let html = markdownToHtml(mainContent);
-    
-    // Add inline citations with hover tooltips
-    html = renderInlineCitations(html, citationMap);
-    
-    return { html, hasReferences: references.length > 0, references, usesOldFormat: false };
-  }, [message.content, isUser, message.references]);
+    return { mainContent, references, citationMap };
+  }, [message.content, message.references, isUser]);
 
-  const renderContent = () => {
-    return <div dangerouslySetInnerHTML={{ __html: content.html }} />;
-  };
-
+  // User message bubble
   if (isUser) {
     return (
       <div
@@ -124,15 +417,15 @@ export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
         style={{ animationDelay: `${delay}s` }}
       >
         <div className="flex flex-1 flex-col gap-1 items-end">
-          <p className="text-[#333333] dark:text-gray-400 text-xs font-normal leading-normal max-w-[360px] text-right">
+          <p className="text-gray-500 dark:text-gray-400 text-xs font-medium">
             You
           </p>
-          <p className="text-base font-normal leading-normal flex max-w-lg rounded-xl px-4 py-3 bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-100 shadow-sm border border-emerald-200 dark:border-emerald-800">
+          <p className="text-base font-normal leading-relaxed max-w-lg rounded-xl px-4 py-3 bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-100 shadow-sm border border-emerald-200 dark:border-emerald-800">
             {message.content}
           </p>
         </div>
         <div
-          className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 h-10 shrink-0"
+          className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 h-10 shrink-0 ring-2 ring-emerald-200 dark:ring-emerald-800"
           style={{
             backgroundImage:
               'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBRqumJAgVByoXuzEYyKYepSO48jaVL4SHaLztYntgLwSuk8dHqOgnsRiVj2h1UDGrKXBQHCuaam0hxyZ2_0dGnusWne0ZRO6jyJ6QXEQHSNvqKj8JeiEYTVrPJvyaGupKLmHvG1MK8MOSAgMUuP7rYL3BZKqmQg6Qe7uGxHf2Pr9x60H1CFBHZJKiKpeH3eh3LjpV7Lmh5_Jw7X_sGm3U_IYJrSdkrHetvNQhVxAFUHU3J2s-nHayWa1DNpOmSfqBoen20iVCjwik")',
@@ -142,65 +435,80 @@ export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
     );
   }
 
+  // AI message bubble
   return (
     <div
       className="flex items-start gap-3 p-4 chat-bubble"
       style={{ animationDelay: `${delay}s` }}
     >
       <div
-        className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 h-10 shrink-0 shadow-sm"
+        className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 h-10 shrink-0 shadow-md ring-2 ring-white dark:ring-gray-700"
         style={{
           backgroundImage:
             'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDrkDJRueG6cbTc-pK2U118OcT-5KblcDRskAzZVfP0X_7RJDy816UrmdXAd2MRPiVEYm59VZjnO6IQh7QnRyQiUwk1zz3EkF_Xrk2_C7UKRtsC7seOPZBkhzPNyw1GltrIANbDtFRn4ae2THwRRRfPQ67oMLEV5PCIIMK8X3lNqw8PeDaEsLxgjah83QXIeTAPXy9IdgixokHl1ZbCsHQ1zrY7zyoU7Sv88-j9-q-IuKpNhIg1td9Spgax93tk7ppyxCpGLdorTAM")',
         }}
       />
       <div className="flex flex-1 flex-col gap-1 items-start">
-        <p className="text-[#333333] dark:text-gray-400 text-xs font-normal leading-normal max-w-[360px]">
+        <p className="text-gray-500 dark:text-gray-400 text-xs font-medium">
           GreenLaw AI
         </p>
-        <div className="text-base font-normal leading-normal flex flex-col max-w-2xl rounded-xl bg-white dark:bg-gray-800 text-[#2D3748] dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-sm">
-          <div className="px-4 py-3">{renderContent()}</div>
-          
-          {/* New format: Parsed references from ## References section */}
-          {content.hasReferences && content.references && content.references.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-4 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900/30 dark:to-gray-900/50">
-              <h4 className="text-sm font-bold uppercase text-emerald-700 dark:text-emerald-400 mb-4 tracking-wide flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-                References
-              </h4>
-              <div className="space-y-3">
-                {content.references.map((ref) => (
-                  <div
-                    key={ref.number}
-                    className="flex gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200"
-                  >
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold flex-shrink-0 text-sm">
-                      [{ref.number}]
-                    </span>
-                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm">
-                      {ref.text}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {/* Old format: message.citation HTML */}
-          {message.citation && !content.hasReferences && (
-            <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-4 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900/30 dark:to-gray-900/50">
-              <h4 className="text-sm font-bold uppercase text-emerald-700 dark:text-emerald-400 mb-4 tracking-wide flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-                References
-              </h4>
-              <div
-                className="text-sm text-gray-700 dark:text-gray-300 leading-7 space-y-2 citation-list"
-                dangerouslySetInnerHTML={{ __html: message.citation }}
+
+        {/* Message Container */}
+        <div className="message-bubble bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 max-w-3xl">
+          {/* Main Content */}
+          <div className="prose-content text-gray-700 dark:text-gray-300 leading-[1.7] text-[15px]">
+            {parsedContent && (
+              <MarkdownContent
+                content={parsedContent.mainContent}
+                citationMap={parsedContent.citationMap}
               />
+            )}
+          </div>
+
+          {/* Divider (only if has references) */}
+          {parsedContent && parsedContent.references.length > 0 && (
+            <div className="border-t border-gray-100 dark:border-gray-700 my-4"></div>
+          )}
+
+          {/* References Section */}
+          {parsedContent && (
+            <ReferencesSection references={parsedContent.references} />
+          )}
+
+          {/* Backend format: message.references array with {text, tooltip} */}
+          {message.references && message.references.length > 0 && !parsedContent?.references.length && (
+            <div className="references-section bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 mt-4">
+              <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                  />
+                </svg>
+                References
+              </h4>
+              <ul className="space-y-2">
+                {message.references.map((ref, index) => (
+                  <li
+                    key={index}
+                    className="text-sm p-2.5 hover:bg-white dark:hover:bg-gray-800 hover:shadow-sm rounded-md transition-all cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
+                  >
+                    <span className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                      <span className="cursor-pointer text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300 px-1.5 py-0.5 rounded mr-2">
+                        [{index + 1}]
+                      </span>
+                      {ref.tooltip || ref.text}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>
