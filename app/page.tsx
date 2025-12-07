@@ -4,8 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import ChatBubble from "@/components/ChatBubble";
 import Header from "@/components/Header";
 import MessageInput from "@/components/MessageInput";
+import LandingView from "@/components/LandingView";
 import { useChatHistory } from "@/lib/useChatHistory";
-import { loadChatHistory, saveChatHistory, getSessionId } from "@/lib/chatStorage";
+import { loadChatHistory, saveChatHistory, getSessionId, clearChatHistory } from "@/lib/chatStorage";
 
 export interface Reference {
   text: string;
@@ -20,46 +21,6 @@ export interface Message {
   citation?: string;
 }
 
-// Default welcome messages (only shown if no saved history)
-const DEFAULT_MESSAGES: Message[] = [
-  {
-    id: "1",
-    role: "assistant",
-    content:
-      'The key regulations for industrial emissions in the EU are primarily governed by the Industrial Emissions Directive (IED).\n\nSpecifically, <span class="quote-ref" data-ref="0">Directive 2010/75/EU</span> establishes the main principles for the permitting and control of industrial installations. This directive aims to prevent and control pollution from large industrial and agricultural activities. It requires installations to operate under a permit with conditions based on the Best Available Techniques (BAT).',
-    references: [
-      {
-        text: "Directive 2010/75/EU",
-        tooltip:
-          "Directive 2010/75/EU of the European Parliament and of the Council of 24 November 2010 on industrial emissions (integrated pollution prevention and control)",
-      },
-    ],
-    citation:
-      "European Parliament & Council of the European Union. (2010). <i>Directive 2010/75/EU of the European Parliament and of the Council of 24 November 2010 on industrial emissions (integrated pollution prevention and control)</i>. Official Journal of the European Union, L 334/17.",
-  },
-  {
-    id: "2",
-    role: "user",
-    content:
-      "What are the key regulations for industrial emissions in the European Union?",
-  },
-  {
-    id: "3",
-    role: "assistant",
-    content:
-      'Of course. In addition to the IED, another landmark case is <span class="quote-ref" data-ref="0">Case C-59/89</span>. This case clarified that environmental protection requirements must be integrated into the definition and implementation of other EU policies.',
-    references: [
-      {
-        text: "Case C-59/89",
-        tooltip:
-          'Commission v Germany (1991) ECR I-2607, also known as the "Grosskrotzenburg" case.',
-      },
-    ],
-    citation:
-      "Court of Justice of the European Communities. (1991). <i>Case C-59/89, Commission of the European Communities v Federal Republic of Germany (Grosskrotzenburg power station)</i>. ECR I-2607.",
-  },
-];
-
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -68,10 +29,16 @@ export default function Home() {
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
 
   // Initialize chat history hook
-  const { clear: clearHistory } = useChatHistory(messages, setMessages, {
+  const { clear: clearHistoryHook } = useChatHistory(messages, setMessages, {
     autoSave: true,
-    autoLoad: false, // We'll load manually to show default messages if empty
+    autoLoad: false,
   });
+
+  // Clear history and return to landing
+  const handleClearChat = () => {
+    clearChatHistory();
+    setMessages([]);
+  };
 
   // Load chat history on mount
   useEffect(() => {
@@ -79,10 +46,8 @@ export default function Home() {
       const savedMessages = loadChatHistory();
       if (savedMessages.length > 0) {
         setMessages(savedMessages);
-      } else {
-        // Only show default messages if no saved history
-        setMessages(DEFAULT_MESSAGES);
       }
+      // No default messages - show landing page instead
       setHasLoadedHistory(true);
     }
   }, [hasLoadedHistory]);
@@ -121,20 +86,20 @@ export default function Home() {
     try {
       // Get session ID (from localStorage or generate new)
       const sessionId = getSessionId();
-      
+
       // Prepare conversation history (exclude current message)
       const conversationHistory = messages.map(msg => ({
         role: msg.role,
         content: msg.content,
       }));
-      
+
       // Call the API route with conversation history
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           message,
           conversation_history: conversationHistory,
           session_id: sessionId,
@@ -167,10 +132,24 @@ export default function Home() {
     }
   };
 
+  // Determine if we should show landing page
+  // Show landing when: not loaded yet, or no messages at all
+  const isLandingMode = !hasLoadedHistory || messages.length === 0;
+
+  // Landing page view
+  if (isLandingMode && !isLoading) {
+    return (
+      <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-950">
+        <LandingView onSend={handleSend} disabled={isLoading} />
+      </div>
+    );
+  }
+
+  // Chat view
   return (
     <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
       <div className="layout-container flex h-full grow flex-col">
-        <Header onClearChat={clearHistory} />
+        <Header onClearChat={handleClearChat} />
 
         <main className="flex flex-1 justify-center py-5">
           <div className="layout-content-container flex flex-col w-full max-w-3xl flex-1 px-4">
@@ -183,7 +162,7 @@ export default function Home() {
                 />
               ))}
               {isLoading && (
-                <div className="flex items-end gap-3 p-4">
+                <div className="flex items-end gap-3 p-4 animate-fade-in">
                   <div
                     className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 h-10 shrink-0 shadow-sm"
                     style={{

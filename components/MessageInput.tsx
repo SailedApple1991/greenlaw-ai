@@ -5,6 +5,8 @@ interface MessageInputProps {
   onChange: (value: string) => void;
   onSend: (message: string) => void;
   disabled?: boolean;
+  variant?: "chat" | "landing";
+  placeholder?: string;
 }
 
 export default function MessageInput({
@@ -12,6 +14,8 @@ export default function MessageInput({
   onChange,
   onSend,
   disabled = false,
+  variant = "chat",
+  placeholder = "Type your message...",
 }: MessageInputProps) {
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -26,15 +30,23 @@ export default function MessageInput({
 
   const canSend = !disabled && value.trim().length > 0;
 
+  const isLanding = variant === "landing";
+
   return (
-    <div className="sticky bottom-0 bg-background-light dark:bg-background-dark py-4">
-      <div className="flex items-center px-4 py-2 gap-3 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-        <label className="flex flex-col min-w-40 h-12 flex-1">
+    <div className={isLanding ? "" : "sticky bottom-0 bg-background-light dark:bg-background-dark py-4"}>
+      <div className={`flex items-center gap-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 ${
+        isLanding
+          ? "px-6 py-4 shadow-xl"
+          : "px-4 py-2 shadow-lg"
+      }`}>
+        <label className={`flex flex-col min-w-40 flex-1 ${isLanding ? "h-14" : "h-12"}`}>
           <div className="flex w-full flex-1 items-stretch rounded-xl h-full">
             <input
               type="text"
-              className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#333333] dark:text-white focus:outline-0 focus:ring-0 border-none bg-transparent h-full placeholder:text-gray-500 dark:placeholder-gray-500 px-2 text-base font-normal leading-normal"
-              placeholder="Type your message..."
+              className={`form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#333333] dark:text-white focus:outline-0 focus:ring-0 border-none bg-transparent h-full placeholder:text-gray-500 dark:placeholder-gray-500 px-2 font-normal leading-normal ${
+                isLanding ? "text-lg" : "text-base"
+              }`}
+              placeholder={placeholder}
               value={value}
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -42,7 +54,9 @@ export default function MessageInput({
             />
             <div className="flex border-none items-center justify-center pr-2">
               <button
-                className={`flex items-center justify-center p-2 rounded-full transition-all ${
+                className={`flex items-center justify-center rounded-full transition-all ${
+                  isLanding ? "p-3" : "p-2"
+                } ${
                   canSend
                     ? "bg-emerald-500 hover:bg-emerald-600 cursor-pointer shadow-md"
                     : "bg-gray-300 dark:bg-gray-600 cursor-not-allowed"
@@ -55,7 +69,7 @@ export default function MessageInput({
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
                   fill="currentColor"
-                  className={`w-5 h-5 ${
+                  className={`${isLanding ? "w-6 h-6" : "w-5 h-5"} ${
                     canSend ? "text-white" : "text-gray-500"
                   }`}
                 >
