@@ -192,31 +192,29 @@ async def chat(request: ChatRequest):
         logger.info(f"User message: {request.message[:100]}...")
 
         # Send message to RAGFlow using the official SDK
-        # Note: RAGFlow SDK's streaming yields complete messages, not deltas
-        # We only need to keep the last message chunk
-        last_message = None
+        # Use non-streaming mode for stability (streaming has "Response ended prematurely" issues)
         references_data = []
-
-        # Collect messages (SDK yields complete messages, not deltas)
-        for message_chunk in session.ask(question=request.message, stream=True):
-            last_message = message_chunk
-
-            # Extract references if available
-            if hasattr(message_chunk, 'reference') and message_chunk.reference:
-                references_data = message_chunk.reference
-
-        # Get content from the last message
         content = ""
-        if last_message and hasattr(last_message, 'content'):
-            content = last_message.content
 
-        if not content:
-            # Fallback: try non-streaming
-            logger.warning("Streaming returned empty content, trying non-streaming")
+        try:
+            # Non-streaming mode - more stable
             message_result = session.ask(question=request.message, stream=False)
-            content = message_result.content if hasattr(message_result, 'content') else str(message_result)
-            if hasattr(message_result, 'reference'):
-                references_data = message_result.reference
+
+            # Handle generator (SDK may still return generator even with stream=False)
+            if hasattr(message_result, '__iter__') and not isinstance(message_result, (str, dict)):
+                for chunk in message_result:
+                    if hasattr(chunk, 'content'):
+                        content = chunk.content
+                    if hasattr(chunk, 'reference') and chunk.reference:
+                        references_data = chunk.reference
+            else:
+                # Direct message object
+                content = message_result.content if hasattr(message_result, 'content') else str(message_result)
+                if hasattr(message_result, 'reference'):
+                    references_data = message_result.reference
+
+        except Exception as stream_error:
+            logger.warning(f"SDK call failed: {stream_error}, content so far: {content[:100] if content else 'empty'}")
 
         # Parse references from RAGFlow response
         references = parse_ragflow_references(references_data)
