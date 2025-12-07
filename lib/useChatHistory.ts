@@ -8,7 +8,6 @@ import {
   saveChatHistory,
   loadChatHistory,
   clearChatHistory,
-  getSessionId,
   getStorageInfo,
 } from "./chatStorage";
 
@@ -59,10 +58,7 @@ export function useChatHistory(
 
   // Get session info
   const getSessionInfo = useCallback(() => {
-    return {
-      sessionId: getSessionId(),
-      ...getStorageInfo(),
-    };
+    return getStorageInfo();
   }, []);
 
   return {
