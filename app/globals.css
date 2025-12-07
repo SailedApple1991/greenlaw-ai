@@ -45,3 +45,30 @@
   word-wrap: break-word;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
+
+/* Citation list styling for better readability */
+.citation-list {
+  line-height: 1.8;
+}
+
+.citation-list [data-ref] {
+  display: block;
+  margin-bottom: 12px;
+  padding-left: 8px;
+  border-left: 3px solid #10b981;
+}
+
+.citation-list strong {
+  color: #059669;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .citation-list [data-ref] {
+    border-left-color: #34d399;
+  }
+
+  .citation-list strong {
+    color: #34d399;
+  }
+}

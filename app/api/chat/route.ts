@@ -3,7 +3,7 @@ import { askGemini } from "@/lib/llm";
 
 export async function POST(request: NextRequest) {
   try {
-    const { message } = await request.json();
+    const { message, conversation_history, session_id } = await request.json();
 
     if (!message || typeof message !== "string") {
       return NextResponse.json(
@@ -12,10 +12,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if API key is configured
+    // Check if FastAPI backend is configured
+    const FASTAPI_BACKEND_URL = process.env.FASTAPI_BACKEND_URL || "http://localhost:8000";
+    const USE_FASTAPI_BACKEND = process.env.USE_FASTAPI_BACKEND === "true";
+
+    // Option 1: Use FastAPI backend (connects to RAGFlow)
+    if (USE_FASTAPI_BACKEND) {
+      try {
+        const backendResponse = await fetch(`${FASTAPI_BACKEND_URL}/api/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message,
+            stream: false,
+            reference: true,
+            conversation_history: conversation_history || [],
+            session_id: session_id,
+          }),
+        });
+
+        if (!backendResponse.ok) {
+          const errorData = await backendResponse.json().catch(() => ({}));
+          throw new Error(errorData.detail || `Backend error: ${backendResponse.statusText}`);
+        }
+
+        const backendData = await backendResponse.json();
+        return NextResponse.json(backendData);
+      } catch (error) {
+        console.error("FastAPI backend error:", error);
+        // Fallback to Gemini if backend fails
+        console.log("Falling back to Gemini API...");
+      }
+    }
+
+    // Option 2: Use Gemini API directly (fallback or default)
     if (!process.env.GOOGLE_API_KEY) {
       return NextResponse.json(
-        { error: "Gemini API key not configured. Please set GOOGLE_API_KEY in .env.local" },
+        { error: "No backend configured. Please set either USE_FASTAPI_BACKEND=true with FastAPI running, or set GOOGLE_API_KEY in .env.local" },
         { status: 500 }
       );
     }

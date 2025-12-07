@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import ChatBubble from "@/components/ChatBubble";
 import Header from "@/components/Header";
 import MessageInput from "@/components/MessageInput";
+import { useChatHistory } from "@/lib/useChatHistory";
+import { loadChatHistory, saveChatHistory, getSessionId } from "@/lib/chatStorage";
 
 export interface Reference {
   text: string;
@@ -18,49 +20,82 @@ export interface Message {
   citation?: string;
 }
 
-export default function Home() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content:
-        'The key regulations for industrial emissions in the EU are primarily governed by the Industrial Emissions Directive (IED).\n\nSpecifically, <span class="quote-ref" data-ref="0">Directive 2010/75/EU</span> establishes the main principles for the permitting and control of industrial installations. This directive aims to prevent and control pollution from large industrial and agricultural activities. It requires installations to operate under a permit with conditions based on the Best Available Techniques (BAT).',
-      references: [
-        {
-          text: "Directive 2010/75/EU",
-          tooltip:
-            "Directive 2010/75/EU of the European Parliament and of the Council of 24 November 2010 on industrial emissions (integrated pollution prevention and control)",
-        },
-      ],
-      citation:
-        "European Parliament & Council of the European Union. (2010). <i>Directive 2010/75/EU of the European Parliament and of the Council of 24 November 2010 on industrial emissions (integrated pollution prevention and control)</i>. Official Journal of the European Union, L 334/17.",
-    },
-    {
-      id: "2",
-      role: "user",
-      content:
-        "What are the key regulations for industrial emissions in the European Union?",
-    },
-    {
-      id: "3",
-      role: "assistant",
-      content:
-        'Of course. In addition to the IED, another landmark case is <span class="quote-ref" data-ref="0">Case C-59/89</span>. This case clarified that environmental protection requirements must be integrated into the definition and implementation of other EU policies.',
-      references: [
-        {
-          text: "Case C-59/89",
-          tooltip:
-            'Commission v Germany (1991) ECR I-2607, also known as the "Grosskrotzenburg" case.',
-        },
-      ],
-      citation:
-        "Court of Justice of the European Communities. (1991). <i>Case C-59/89, Commission of the European Communities v Federal Republic of Germany (Grosskrotzenburg power station)</i>. ECR I-2607.",
-    },
-  ]);
+// Default welcome messages (only shown if no saved history)
+const DEFAULT_MESSAGES: Message[] = [
+  {
+    id: "1",
+    role: "assistant",
+    content:
+      'The key regulations for industrial emissions in the EU are primarily governed by the Industrial Emissions Directive (IED).\n\nSpecifically, <span class="quote-ref" data-ref="0">Directive 2010/75/EU</span> establishes the main principles for the permitting and control of industrial installations. This directive aims to prevent and control pollution from large industrial and agricultural activities. It requires installations to operate under a permit with conditions based on the Best Available Techniques (BAT).',
+    references: [
+      {
+        text: "Directive 2010/75/EU",
+        tooltip:
+          "Directive 2010/75/EU of the European Parliament and of the Council of 24 November 2010 on industrial emissions (integrated pollution prevention and control)",
+      },
+    ],
+    citation:
+      "European Parliament & Council of the European Union. (2010). <i>Directive 2010/75/EU of the European Parliament and of the Council of 24 November 2010 on industrial emissions (integrated pollution prevention and control)</i>. Official Journal of the European Union, L 334/17.",
+  },
+  {
+    id: "2",
+    role: "user",
+    content:
+      "What are the key regulations for industrial emissions in the European Union?",
+  },
+  {
+    id: "3",
+    role: "assistant",
+    content:
+      'Of course. In addition to the IED, another landmark case is <span class="quote-ref" data-ref="0">Case C-59/89</span>. This case clarified that environmental protection requirements must be integrated into the definition and implementation of other EU policies.',
+    references: [
+      {
+        text: "Case C-59/89",
+        tooltip:
+          'Commission v Germany (1991) ECR I-2607, also known as the "Grosskrotzenburg" case.',
+      },
+    ],
+    citation:
+      "Court of Justice of the European Communities. (1991). <i>Case C-59/89, Commission of the European Communities v Federal Republic of Germany (Grosskrotzenburg power station)</i>. ECR I-2607.",
+  },
+];
 
+export default function Home() {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
+
+  // Initialize chat history hook
+  const { clear: clearHistory } = useChatHistory(messages, setMessages, {
+    autoSave: true,
+    autoLoad: false, // We'll load manually to show default messages if empty
+  });
+
+  // Load chat history on mount
+  useEffect(() => {
+    if (!hasLoadedHistory) {
+      const savedMessages = loadChatHistory();
+      if (savedMessages.length > 0) {
+        setMessages(savedMessages);
+      } else {
+        // Only show default messages if no saved history
+        setMessages(DEFAULT_MESSAGES);
+      }
+      setHasLoadedHistory(true);
+    }
+  }, [hasLoadedHistory]);
+
+  // Auto-save messages when they change
+  useEffect(() => {
+    if (hasLoadedHistory && messages.length > 0) {
+      const timeoutId = setTimeout(() => {
+        saveChatHistory(messages);
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [messages, hasLoadedHistory]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -84,13 +119,26 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      // Call the API route
+      // Get session ID (from localStorage or generate new)
+      const sessionId = getSessionId();
+      
+      // Prepare conversation history (exclude current message)
+      const conversationHistory = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+      
+      // Call the API route with conversation history
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ 
+          message,
+          conversation_history: conversationHistory,
+          session_id: sessionId,
+        }),
       });
 
       if (!response.ok) {
@@ -117,7 +165,7 @@ export default function Home() {
   return (
     <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
       <div className="layout-container flex h-full grow flex-col">
-        <Header />
+        <Header onClearChat={clearHistory} />
 
         <main className="flex flex-1 justify-center py-5">
           <div className="layout-content-container flex flex-col w-full max-w-3xl flex-1 px-4">

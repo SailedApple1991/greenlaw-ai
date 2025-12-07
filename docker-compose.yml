@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: ${FRONTEND_IMAGE:-greenlaw-frontend:latest}
+    container_name: greenlaw-frontend
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=/api
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - greenlaw-net
+
+  backend:
+    image: ${BACKEND_IMAGE:-greenlaw-backend:latest}
+    container_name: greenlaw-backend
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - RAGFLOW_API_KEY=${RAGFLOW_API_KEY}
+      - RAGFLOW_BASE_URL=http://host.docker.internal:9380
+      - RAGFLOW_CHAT_ID=${RAGFLOW_CHAT_ID}
+      - PORT=8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - greenlaw-net
+
+networks:
+  greenlaw-net:
+    driver: bridge

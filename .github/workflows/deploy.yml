@@ -1,0 +1,250 @@
+name: Deploy Greenlaw-AI to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  FRONTEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/greenlaw-frontend
+  BACKEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/greenlaw-backend
+  DOMAIN: greenlaw.sustain-nexus.com
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 设置 Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 3. 登录 Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 4. 生成镜像标签
+      - name: Generate image tags
+        id: meta
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+          echo "tag=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "latest_tag=latest" >> $GITHUB_OUTPUT
+
+      # 5. 构建并推送前端镜像
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.FRONTEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 6. 构建并推送后端镜像
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.BACKEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 7. 部署到 EC2
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "=== 开始部署 Greenlaw-AI ==="
+
+            # 创建目录（首次部署）
+            sudo mkdir -p /opt/greenlaw-ai
+            sudo chown ubuntu:ubuntu /opt/greenlaw-ai
+            cd /opt/greenlaw-ai
+
+            # 创建 docker-compose.yml
+            cat > docker-compose.yml << 'EOF'
+            version: '3.8'
+
+            services:
+              frontend:
+                image: ${FRONTEND_IMAGE}
+                container_name: greenlaw-frontend
+                ports:
+                  - "127.0.0.1:3000:3000"
+                environment:
+                  - NEXT_PUBLIC_API_URL=/api
+                depends_on:
+                  - backend
+                restart: unless-stopped
+                networks:
+                  - greenlaw-net
+
+              backend:
+                image: ${BACKEND_IMAGE}
+                container_name: greenlaw-backend
+                ports:
+                  - "127.0.0.1:8000:8000"
+                environment:
+                  - RAGFLOW_API_KEY=${RAGFLOW_API_KEY}
+                  - RAGFLOW_BASE_URL=http://host.docker.internal:9380
+                  - RAGFLOW_CHAT_ID=${RAGFLOW_CHAT_ID}
+                  - PORT=8000
+                extra_hosts:
+                  - "host.docker.internal:host-gateway"
+                restart: unless-stopped
+                networks:
+                  - greenlaw-net
+
+            networks:
+              greenlaw-net:
+                driver: bridge
+            EOF
+
+            # 创建 .env 文件
+            cat > .env << EOF
+            FRONTEND_IMAGE=${{ env.FRONTEND_IMAGE }}:${{ steps.meta.outputs.tag }}
+            BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}:${{ steps.meta.outputs.tag }}
+            RAGFLOW_API_KEY=${{ secrets.RAGFLOW_API_KEY }}
+            RAGFLOW_CHAT_ID=${{ secrets.RAGFLOW_CHAT_ID }}
+            EOF
+
+            # 拉取新镜像
+            docker pull ${{ env.FRONTEND_IMAGE }}:${{ steps.meta.outputs.tag }}
+            docker pull ${{ env.BACKEND_IMAGE }}:${{ steps.meta.outputs.tag }}
+
+            # 重启服务
+            docker compose down || true
+            docker compose up -d
+
+            # 等待服务启动
+            echo "等待服务启动..."
+            sleep 15
+
+            # 健康检查
+            for i in {1..5}; do
+              if curl -s http://localhost:8000/ > /dev/null; then
+                echo "=== Greenlaw-AI 部署成功！ ==="
+                docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+                exit 0
+              fi
+              echo "等待服务就绪... ($i/5)"
+              sleep 5
+            done
+
+            echo "服务启动中..."
+            docker ps --format 'table {{.Names}}\t{{.Status}}'
+
+      # 8. 配置 Nginx（首次部署时执行）
+      - name: Setup Nginx reverse proxy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # 检查 Nginx 是否已安装
+            if ! command -v nginx &> /dev/null; then
+              echo "安装 Nginx..."
+              sudo apt update
+              sudo apt install -y nginx certbot python3-certbot-nginx
+            fi
+
+            # 创建 Greenlaw Nginx 配置
+            sudo tee /etc/nginx/sites-available/greenlaw << 'EOF'
+            server {
+                listen 80;
+                server_name greenlaw.sustain-nexus.com;
+
+                location / {
+                    proxy_pass http://127.0.0.1:3000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection 'upgrade';
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_cache_bypass $http_upgrade;
+                }
+
+                location /api/ {
+                    proxy_pass http://127.0.0.1:8000/;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                }
+            }
+            EOF
+
+            # 创建 RAGFlow Nginx 配置（如果不存在）
+            if [ ! -f /etc/nginx/sites-available/ragflow ]; then
+              sudo tee /etc/nginx/sites-available/ragflow << 'EOF'
+            server {
+                listen 80;
+                server_name ragflow.sustain-nexus.com;
+
+                client_max_body_size 1024M;
+
+                location / {
+                    proxy_pass http://127.0.0.1:9380;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                }
+            }
+            EOF
+            fi
+
+            # 启用站点
+            sudo ln -sf /etc/nginx/sites-available/greenlaw /etc/nginx/sites-enabled/
+            sudo ln -sf /etc/nginx/sites-available/ragflow /etc/nginx/sites-enabled/
+
+            # 删除默认站点
+            sudo rm -f /etc/nginx/sites-enabled/default
+
+            # 测试并重载 Nginx
+            sudo nginx -t && sudo systemctl reload nginx
+
+            echo "=== Nginx 配置完成 ==="
+
+      # 9. Discord 通知
+      - name: Discord notification
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          status: ${{ job.status }}
+          title: "Greenlaw-AI 部署"
+          description: |
+            前端镜像: ${{ env.FRONTEND_IMAGE }}:${{ steps.meta.outputs.tag }}
+            后端镜像: ${{ env.BACKEND_IMAGE }}:${{ steps.meta.outputs.tag }}
+            访问地址: https://greenlaw.sustain-nexus.com
+          color: ${{ job.status == 'success' && '0x00ff00' || '0xff0000' }}

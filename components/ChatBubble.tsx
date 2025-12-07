@@ -7,32 +7,44 @@ interface ChatBubbleProps {
   delay?: number;
 }
 
-// Simple markdown to HTML converter
+// Enhanced markdown to HTML converter with better formatting
 function markdownToHtml(text: string): string {
   let html = text;
-  
-  // Headers
-  html = html.replace(/^### (.+)$/gm, '<h3 class="text-lg font-bold mt-4 mb-2 text-gray-900 dark:text-white">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-5 mb-3 text-gray-900 dark:text-white">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mt-6 mb-3 text-gray-900 dark:text-white">$1</h1>');
-  
-  // Bold and italic
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-gray-900 dark:text-white">$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em class="italic">$1</em>');
-  
-  // Lists
+
+  // Headers with enhanced styling
+  html = html.replace(
+    /^### (.+)$/gm,
+    '<h3 class="text-xl font-bold mt-6 mb-4 pb-2 text-emerald-700 dark:text-emerald-400 border-b-2 border-emerald-200 dark:border-emerald-800">$1</h3>'
+  );
+  html = html.replace(
+    /^## (.+)$/gm,
+    '<h2 class="text-2xl font-bold mt-7 mb-4 text-gray-900 dark:text-white">$1</h2>'
+  );
+  html = html.replace(
+    /^# (.+)$/gm,
+    '<h1 class="text-3xl font-bold mt-8 mb-5 text-gray-900 dark:text-white">$1</h1>'
+  );
+
+  // Bold and italic with better contrast
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-white">$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em class="italic text-gray-800 dark:text-gray-200">$1</em>');
+
+  // Code blocks inline
+  html = html.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-sm font-mono text-emerald-600 dark:text-emerald-400">$1</code>');
+
+  // Lists with better spacing
   const lines = html.split('\n');
   let inList = false;
   const processed: string[] = [];
-  
+
   for (const line of lines) {
     const listMatch = line.match(/^\s*(\*|-)\s+(.+)$/);
     if (listMatch) {
       if (!inList) {
-        processed.push('<ul class="list-disc list-inside ml-4 space-y-1 my-3">');
+        processed.push('<ul class="list-disc list-inside ml-6 space-y-2 my-4 marker:text-emerald-500 dark:marker:text-emerald-400">');
         inList = true;
       }
-      processed.push(`<li class="text-gray-700 dark:text-gray-300">${listMatch[2]}</li>`);
+      processed.push(`<li class="text-gray-700 dark:text-gray-300 leading-relaxed">${listMatch[2]}</li>`);
     } else {
       if (inList && line.trim() === '') {
         processed.push('</ul>');
@@ -42,19 +54,21 @@ function markdownToHtml(text: string): string {
     }
   }
   if (inList) processed.push('</ul>');
-  
+
   html = processed.join('\n');
-  
-  // Paragraphs
+
+  // Paragraphs with better line height and spacing
   html = html.split('\n\n').map(para => {
     para = para.trim();
     if (para && !para.match(/^<[uh]/)) {
-      return `<p class="mb-3 text-gray-700 dark:text-gray-300 leading-relaxed">${para}</p>`;
+      return `<p class="mb-4 text-gray-700 dark:text-gray-300 leading-7 text-justify">${para}</p>`;
     }
     return para;
   }).join('\n');
-  
-  html = html.replace(/\n/g, '<br />');
+
+  // Convert single newlines to <br/> but preserve structure
+  html = html.replace(/\n(?!<)/g, '<br />');
+
   return html;
 }
 
@@ -149,17 +163,23 @@ export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
           
           {/* New format: Parsed references from ## References section */}
           {content.hasReferences && content.references && content.references.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-3 bg-gray-50 dark:bg-gray-900/30">
-              <h4 className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 mb-3 tracking-wide">
+            <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-4 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900/30 dark:to-gray-900/50">
+              <h4 className="text-sm font-bold uppercase text-emerald-700 dark:text-emerald-400 mb-4 tracking-wide flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
                 References
               </h4>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {content.references.map((ref) => (
-                  <div key={ref.number} className="flex gap-2 text-sm">
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex-shrink-0">
+                  <div
+                    key={ref.number}
+                    className="flex gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200"
+                  >
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold flex-shrink-0 text-sm">
                       [{ref.number}]
                     </span>
-                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm">
                       {ref.text}
                     </p>
                   </div>
@@ -169,13 +189,16 @@ export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
           )}
           
           {/* Old format: message.citation HTML */}
-          {message.citation && (
-            <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-3 bg-gray-50 dark:bg-gray-900/30">
-              <h4 className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 mb-3 tracking-wide">
+          {message.citation && !content.hasReferences && (
+            <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-4 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900/30 dark:to-gray-900/50">
+              <h4 className="text-sm font-bold uppercase text-emerald-700 dark:text-emerald-400 mb-4 tracking-wide flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
                 References
               </h4>
-              <p
-                className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed"
+              <div
+                className="text-sm text-gray-700 dark:text-gray-300 leading-7 space-y-2 citation-list"
                 dangerouslySetInnerHTML={{ __html: message.citation }}
               />
             </div>
