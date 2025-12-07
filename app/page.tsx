@@ -145,7 +145,12 @@ export default function Home() {
         throw new Error("Failed to get response");
       }
 
-      const aiMessage: Message = await response.json();
+      const aiResponse = await response.json();
+      // Use unique ID for each message (backend returns session ID, not message ID)
+      const aiMessage: Message = {
+        ...aiResponse,
+        id: `ai-${Date.now()}`,
+      };
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       console.error("Error sending message:", error);

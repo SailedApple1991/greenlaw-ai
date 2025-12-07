@@ -90,6 +90,7 @@ function extractTitleAndDescription(text: string): { title: string; description:
  * Returns content with citation placeholders that will be replaced by React components
  * Supports:
  *   - [Citation Text]^[Number] → {{CITATION:number:CitationText}}
+ *   - Citation Text^[Number] → {{CITATION:number:CitationText}} (no brackets around name)
  *   - ^[Number] → {{CITATION:number:}}
  *   - {{CITATION:number:label}} (already in correct format, kept as-is)
  */
@@ -99,7 +100,7 @@ export function processCitationsForReact(
 ): string {
   let processed = content;
 
-  // Pattern 1: [Citation Text]^[Number] - Full citation with name (Gemini style)
+  // Pattern 1: [Citation Text]^[Number] - Full citation with name in brackets (Gemini style)
   processed = processed.replace(
     /\[([^\]]+)\]\^\[(\d+)\]/g,
     (_, citationText, number) => {
@@ -107,9 +108,29 @@ export function processCitationsForReact(
     }
   );
 
-  // Pattern 2: ^[Number] - Superscript only
+  // Pattern 1b: Citation Text^[Number] - Citation name WITHOUT brackets (RAGFlow style)
+  // Match: word characters, spaces, parentheses, slashes, hyphens before ^[N]
+  // Examples: "EU Taxonomy Regulation^[3]", "Regulation (EU) 2020/852^[1]"
+  processed = processed.replace(
+    /([A-Z][A-Za-z0-9\s()\/\-]+?)\^\[(\d+)\]/g,
+    (_, citationText, number) => {
+      return `{{CITATION:${number}:${citationText.trim()}}}`;
+    }
+  );
+
+  // Pattern 2: ^[Number] - Superscript only (standalone, not captured by patterns above)
   processed = processed.replace(
     /\^\[(\d+)\]/g,
+    (_, number) => {
+      return `{{CITATION:${number}:}}`;
+    }
+  );
+
+  // Pattern 3: [Number] - Simple bracket citation (RAGFlow common format)
+  // Must be careful not to match markdown links like [text](url)
+  // Only match [Number] where Number is 1-3 digits, not followed by ( or preceded by ]
+  processed = processed.replace(
+    /(?<!\])\[(\d{1,3})\](?!\()/g,
     (_, number) => {
       return `{{CITATION:${number}:}}`;
     }

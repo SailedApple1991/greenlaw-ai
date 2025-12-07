@@ -1,7 +1,7 @@
 "use client";
 
 import { Message } from "@/app/page";
-import { useMemo, useCallback, useState, useRef } from "react";
+import React, { useMemo, useCallback, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -210,6 +210,99 @@ function CitationBadge({
   );
 }
 
+// Single Reference Item with copy functionality
+function ReferenceItem({ ref }: { ref: ParsedReference }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const textToCopy = `[${ref.number}] ${ref.text}`;
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  return (
+    <li
+      id={`ref-${ref.number}`}
+      className="relative text-sm p-2.5 hover:bg-white dark:hover:bg-gray-800 hover:shadow-sm rounded-md transition-all cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-700 group"
+      onClick={handleCopy}
+    >
+      <span className="text-gray-700 dark:text-gray-300 leading-relaxed pr-20">
+        <span className="cursor-pointer text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300 px-1.5 py-0.5 rounded mr-2">
+          [{ref.number}]
+        </span>
+        {ref.text}
+      </span>
+
+      {/* Floating copy indicator / toast outside text */}
+      <span className="absolute -right-2 top-1/2 -translate-y-1/2 translate-x-full whitespace-nowrap z-10">
+        {copied ? (
+          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-md shadow-sm animate-fade-in-out flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Copied!
+          </span>
+        ) : (
+          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md shadow-sm">
+            Click to copy
+          </span>
+        )}
+      </span>
+    </li>
+  );
+}
+
+// Backend Reference Item with copy functionality (for message.references format)
+function BackendReferenceItem({ number, text }: { number: string; text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const textToCopy = `[${number}] ${text}`;
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  return (
+    <li
+      className="relative text-sm p-2.5 hover:bg-white dark:hover:bg-gray-800 hover:shadow-sm rounded-md transition-all cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-700 group"
+      onClick={handleCopy}
+    >
+      <span className="text-gray-700 dark:text-gray-300 leading-relaxed pr-20">
+        <span className="cursor-pointer text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300 px-1.5 py-0.5 rounded mr-2">
+          [{number}]
+        </span>
+        {text}
+      </span>
+
+      {/* Floating copy indicator / toast outside text */}
+      <span className="absolute -right-2 top-1/2 -translate-y-1/2 translate-x-full whitespace-nowrap z-10">
+        {copied ? (
+          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-md shadow-sm animate-fade-in-out flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Copied!
+          </span>
+        ) : (
+          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md shadow-sm">
+            Click to copy
+          </span>
+        )}
+      </span>
+    </li>
+  );
+}
+
 // References Section Component
 function ReferencesSection({
   references,
@@ -217,10 +310,6 @@ function ReferencesSection({
   references: ParsedReference[];
 }) {
   if (references.length === 0) return null;
-
-  const scrollToRef = (_number: string) => {
-    // Optional: implement scroll to reference functionality
-  };
 
   return (
     <div className="references-section bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 mt-4">
@@ -243,19 +332,7 @@ function ReferencesSection({
 
       <ul className="space-y-2">
         {references.map((ref) => (
-          <li
-            key={ref.number}
-            id={`ref-${ref.number}`}
-            className="text-sm p-2.5 hover:bg-white dark:hover:bg-gray-800 hover:shadow-sm rounded-md transition-all cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
-            onClick={() => scrollToRef(ref.number)}
-          >
-            <span className="text-gray-700 dark:text-gray-300 leading-relaxed">
-              <span className="cursor-pointer text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300 px-1.5 py-0.5 rounded mr-2">
-                [{ref.number}]
-              </span>
-              {ref.text}
-            </span>
-          </li>
+          <ReferenceItem key={ref.number} ref={ref} />
         ))}
       </ul>
     </div>
@@ -277,7 +354,7 @@ function MarkdownContent({
 
   // Custom component to render text with citations
   const renderTextWithCitations = useCallback(
-    (text: string) => {
+    (text: string): React.ReactNode => {
       const parts = text.split(/(\{\{CITATION:\d+:[^}]*\}\})/g);
 
       return parts.map((part, index) => {
@@ -300,6 +377,33 @@ function MarkdownContent({
     [citationMap]
   );
 
+  // Process children recursively to handle citations in nested elements
+  const processChildren = useCallback(
+    (children: React.ReactNode): React.ReactNode => {
+      return React.Children.map(children, (child, idx) => {
+        if (typeof child === "string") {
+          // Check if this string contains citation markers
+          if (child.includes("{{CITATION:")) {
+            return <React.Fragment key={idx}>{renderTextWithCitations(child)}</React.Fragment>;
+          }
+          return child;
+        }
+        if (React.isValidElement(child)) {
+          // Recursively process child elements
+          const childProps = child.props as { children?: React.ReactNode };
+          if (childProps.children) {
+            return React.cloneElement(child, {
+              ...child.props,
+              children: processChildren(childProps.children),
+            } as React.Attributes);
+          }
+        }
+        return child;
+      });
+    },
+    [renderTextWithCitations]
+  );
+
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
@@ -308,9 +412,7 @@ function MarkdownContent({
         // Paragraph styling
         p: ({ children }) => (
           <p className="mb-4 text-gray-700 dark:text-gray-300 leading-[1.7] text-[15px]">
-            {typeof children === "string"
-              ? renderTextWithCitations(children)
-              : children}
+            {processChildren(children)}
           </p>
         ),
 
@@ -344,9 +446,7 @@ function MarkdownContent({
         ),
         li: ({ children }) => (
           <li className="text-gray-700 dark:text-gray-300 leading-relaxed pl-1">
-            {typeof children === "string"
-              ? renderTextWithCitations(children)
-              : children}
+            {processChildren(children)}
           </li>
         ),
 
@@ -396,13 +496,6 @@ function MarkdownContent({
           </a>
         ),
 
-        // Handle text nodes to process citations
-        text: ({ children }) => {
-          if (typeof children === "string") {
-            return <>{renderTextWithCitations(children)}</>;
-          }
-          return <>{children}</>;
-        },
       }}
     >
       {processedContent}
@@ -510,6 +603,7 @@ export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
           )}
 
           {/* Backend format: message.references array with {text, tooltip} */}
+          {/* text = full citation text, tooltip = reference number */}
           {message.references && message.references.length > 0 && !parsedContent?.references.length && (
             <div className="references-section bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 mt-4">
               <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -530,17 +624,11 @@ export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
               </h4>
               <ul className="space-y-2">
                 {message.references.map((ref, index) => (
-                  <li
+                  <BackendReferenceItem
                     key={index}
-                    className="text-sm p-2.5 hover:bg-white dark:hover:bg-gray-800 hover:shadow-sm rounded-md transition-all cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
-                  >
-                    <span className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                      <span className="cursor-pointer text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300 px-1.5 py-0.5 rounded mr-2">
-                        [{index + 1}]
-                      </span>
-                      {ref.tooltip || ref.text}
-                    </span>
-                  </li>
+                    number={ref.tooltip || String(index + 1)}
+                    text={ref.text}
+                  />
                 ))}
               </ul>
             </div>
