@@ -26,7 +26,7 @@ export default function LandingView({ onSend, disabled }: LandingViewProps) {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[85vh] px-4 animate-fade-in">
+    <div className="flex-1 flex flex-col items-center justify-center px-4 animate-fade-in">
       {/* Logo and Title */}
       <div className="mb-10 text-center">
         <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg">

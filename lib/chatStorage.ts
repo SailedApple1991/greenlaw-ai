@@ -22,13 +22,47 @@ interface StoredChat {
  */
 export function getSessionId(): string {
   if (typeof window === "undefined") return "";
-  
+
   let sessionId = localStorage.getItem("greenlaw_session_id");
   if (!sessionId) {
     sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     localStorage.setItem("greenlaw_session_id", sessionId);
   }
   return sessionId;
+}
+
+/**
+ * Generate or retrieve a user ID
+ * Supports URL parameter for easy integration (e.g., ?user_id=john)
+ * Falls back to auto-generated anonymous ID stored in localStorage
+ */
+export function getUserId(): string {
+  if (typeof window === "undefined") return "";
+
+  // Priority 1: URL parameter (for easy testing and integration)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlUserId = urlParams.get('user_id');
+  if (urlUserId) {
+    localStorage.setItem("greenlaw_user_id", urlUserId);
+    return urlUserId;
+  }
+
+  // Priority 2: Existing localStorage value
+  let userId = localStorage.getItem("greenlaw_user_id");
+  if (!userId) {
+    // Auto-generate anonymous user ID
+    userId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    localStorage.setItem("greenlaw_user_id", userId);
+  }
+  return userId;
+}
+
+/**
+ * Clear user ID (optional utility)
+ */
+export function clearUserId(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("greenlaw_user_id");
 }
 
 /**
@@ -186,6 +220,7 @@ export function getStorageInfo(): {
     };
   }
 }
+
 
 
 

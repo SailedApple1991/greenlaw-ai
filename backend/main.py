@@ -99,6 +99,7 @@ class ChatRequest(BaseModel):
     reference: Optional[bool] = True  # Get references from RAGFlow
     conversation_history: Optional[List[ChatMessage]] = []  # Optional: conversation history for context
     session_id: Optional[str] = None  # Optional: session identifier for multi-user support
+    user_id: Optional[str] = None  # Optional: user identifier for tracking
 
 
 class Reference(BaseModel):
@@ -130,35 +131,43 @@ async def root():
 # For production, use Redis or database
 _sessions = {}
 
-def get_or_create_session(assistant, session_id: Optional[str] = None):
+def get_or_create_session(assistant, session_id: Optional[str] = None, user_id: str = "anonymous"):
     """
-    Get existing session or create a new one
+    Get existing session or create a new one.
+    Session key includes user_id for better tracking.
     """
-    if not session_id:
+    # Build session key that includes user_id
+    session_key = f"{user_id}_{session_id}" if session_id else None
+
+    if not session_key:
         # Create new session with auto-generated ID
-        session = assistant.create_session(name="New Session")
-        logger.info(f"Created new session: {session.id}")
+        session_name = f"user_{user_id}_new"
+        session = assistant.create_session(name=session_name)
+        logger.info(f"User [{user_id}] created new session: {session.id}")
         return session
 
     # Check if we have this session cached
-    if session_id in _sessions:
-        return _sessions[session_id]
+    if session_key in _sessions:
+        return _sessions[session_key]
 
     # Try to find existing session in RAGFlow
     try:
         sessions = assistant.list_sessions()
         for sess in sessions:
             if sess.id == session_id:
-                _sessions[session_id] = sess
-                logger.info(f"Found existing session: {session_id}")
+                _sessions[session_key] = sess
+                logger.info(f"User [{user_id}] found existing session: {session_id}")
                 return sess
     except Exception as e:
         logger.warning(f"Error listing sessions: {e}")
 
-    # Session not found, create new one
-    session = assistant.create_session(name=f"Session {session_id[:8]}")
-    _sessions[session_id] = session
-    logger.info(f"Created new session for ID {session_id}: {session.id}")
+    # Session not found, create new one with user info in name
+    # Extract meaningful part from session_id (skip "session_" prefix)
+    short_id = session_id[8:16] if session_id and len(session_id) > 8 else (session_id or 'new')
+    session_name = f"{user_id}_{short_id}"
+    session = assistant.create_session(name=session_name)
+    _sessions[session_key] = session
+    logger.info(f"User [{user_id}] created new session: {session.id} (name: {session_name})")
     return session
 
 
@@ -184,12 +193,15 @@ async def chat(request: ChatRequest):
         # Get Chat Assistant
         assistant = get_ragflow_assistant()
 
-        # Get or create session
-        session = get_or_create_session(assistant, request.session_id)
+        # Get user ID (default to anonymous if not provided)
+        user_id = request.user_id or "anonymous"
 
-        # Log session info for debugging
-        logger.info(f"Processing message for session: {session.id}")
-        logger.info(f"User message: {request.message[:100]}...")
+        # Get or create session with user tracking
+        session = get_or_create_session(assistant, request.session_id, user_id=user_id)
+
+        # Log session info for debugging with user context
+        logger.info(f"User [{user_id}] session [{session.id}] - Processing message")
+        logger.info(f"User [{user_id}] message: {request.message[:100]}...")
 
         # Send message to RAGFlow using direct HTTP API (more stable than SDK streaming)
         import requests as http_requests
@@ -245,7 +257,7 @@ async def chat(request: ChatRequest):
             citation=parsed_content["citation"]
         )
 
-        logger.info(f"Response generated successfully")
+        logger.info(f"User [{user_id}] session [{session.id}] - Response generated successfully")
         return response
 
     except ValueError as e:

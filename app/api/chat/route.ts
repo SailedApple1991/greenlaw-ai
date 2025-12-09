@@ -3,7 +3,7 @@ import { askGemini } from "@/lib/llm";
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, conversation_history, session_id } = await request.json();
+    const { message, conversation_history, session_id, user_id } = await request.json();
 
     if (!message || typeof message !== "string") {
       return NextResponse.json(
@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
             reference: true,
             conversation_history: conversation_history || [],
             session_id: session_id,
+            user_id: user_id,
           }),
         });
 
