@@ -7,7 +7,19 @@ import MessageInput from "@/components/MessageInput";
 import LandingView from "@/components/LandingView";
 import Sidebar from "@/components/Sidebar";
 import { useChatHistory } from "@/lib/useChatHistory";
-import { loadChatHistory, saveChatHistory, getSessionId, getUserId, clearChatHistory } from "@/lib/chatStorage";
+import {
+  loadChatHistory,
+  saveChatHistory,
+  getSessionId,
+  getUserId,
+  clearChatHistory,
+  getAllSessions,
+  getCurrentSessionId,
+  createNewSession,
+  switchSession,
+  deleteSession,
+  ChatSession,
+} from "@/lib/chatStorage";
 
 export interface Reference {
   text: string;
@@ -29,6 +41,8 @@ export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   // Initialize chat history hook
   const { clear: clearHistoryHook } = useChatHistory(messages, setMessages, {
@@ -36,21 +50,59 @@ export default function Home() {
     autoLoad: false,
   });
 
+  // Refresh sessions list
+  const refreshSessions = () => {
+    setSessions(getAllSessions());
+  };
+
   // Clear history and return to landing
   const handleClearChat = () => {
     clearChatHistory();
     setMessages([]);
+    setCurrentSessionId(null);
+    refreshSessions();
   };
 
-  // Handle new chat from sidebar
+  // Handle new chat from sidebar - save current and start fresh
   const handleNewChat = () => {
-    handleClearChat();
+    // Current messages are already auto-saved
+    // Create new session
+    const newId = createNewSession();
+    setCurrentSessionId(newId);
+    setMessages([]);
+    refreshSessions();
+  };
+
+  // Handle selecting a session from sidebar
+  const handleSelectSession = (sessionId: string) => {
+    const sessionMessages = switchSession(sessionId);
+    setMessages(sessionMessages);
+    setCurrentSessionId(sessionId);
     setIsSidebarOpen(false);
+  };
+
+  // Handle deleting a session
+  const handleDeleteSession = (sessionId: string) => {
+    deleteSession(sessionId);
+    // If deleted current session, clear messages
+    if (sessionId === currentSessionId) {
+      setMessages([]);
+      setCurrentSessionId(null);
+    }
+    refreshSessions();
   };
 
   // Load chat history on mount
   useEffect(() => {
     if (!hasLoadedHistory) {
+      // Load all sessions
+      const allSessions = getAllSessions();
+      setSessions(allSessions);
+
+      // Load current session
+      const currentId = getCurrentSessionId();
+      setCurrentSessionId(currentId);
+
       const savedMessages = loadChatHistory();
       if (savedMessages.length > 0) {
         setMessages(savedMessages);
@@ -65,6 +117,8 @@ export default function Home() {
     if (hasLoadedHistory && messages.length > 0) {
       const timeoutId = setTimeout(() => {
         saveChatHistory(messages);
+        // Refresh sessions list to update titles
+        refreshSessions();
       }, 500);
       return () => clearTimeout(timeoutId);
     }
@@ -155,11 +209,10 @@ export default function Home() {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onNewChat={handleNewChat}
-        onSelectChat={(chatId) => {
-          // TODO: Implement chat selection when we have real chat history
-          console.log("Selected chat:", chatId);
-          setIsSidebarOpen(false);
-        }}
+        sessions={sessions}
+        currentSessionId={currentSessionId}
+        onSelectSession={handleSelectSession}
+        onDeleteSession={handleDeleteSession}
       />
 
       {/* Main Content Area */}

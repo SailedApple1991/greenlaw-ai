@@ -1,31 +1,82 @@
 "use client";
 
 import { useEffect } from "react";
-import { Plus, X, MessageSquare, User, Settings, BookOpen } from "lucide-react";
-
-// Mock chat history data
-const MOCK_HISTORY = {
-  today: [
-    { id: "1", title: "EU ETS Carbon Trading", preview: "Explain the EU Emissions..." },
-    { id: "2", title: "CSRD Reporting Requirements", preview: "What are the CSRD..." },
-  ],
-  yesterday: [
-    { id: "3", title: "EU Taxonomy Regulation", preview: "How does the EU Taxonomy..." },
-  ],
-  previous7Days: [
-    { id: "4", title: "Environmental Impact Assessment", preview: "What is an EIA..." },
-    { id: "5", title: "CBAM Implementation", preview: "Carbon Border Adjustment..." },
-  ],
-};
+import { Plus, X, BookOpen, MessageSquare, Trash2 } from "lucide-react";
+import { ChatSession, categorizeSessionsByTime } from "@/lib/chatStorage";
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onNewChat: () => void;
-  onSelectChat?: (chatId: string) => void;
+  sessions: ChatSession[];
+  currentSessionId: string | null;
+  onSelectSession: (id: string) => void;
+  onDeleteSession?: (id: string) => void;
 }
 
-export default function Sidebar({ isOpen, onClose, onNewChat, onSelectChat }: SidebarProps) {
+interface HistorySectionProps {
+  title: string;
+  sessions: ChatSession[];
+  currentSessionId: string | null;
+  onSelectSession: (id: string) => void;
+  onDeleteSession?: (id: string) => void;
+}
+
+function HistorySection({
+  title,
+  sessions,
+  currentSessionId,
+  onSelectSession,
+  onDeleteSession,
+}: HistorySectionProps) {
+  if (sessions.length === 0) return null;
+
+  return (
+    <div className="mb-4">
+      <h3 className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+        {title}
+      </h3>
+      <div className="space-y-1">
+        {sessions.map((session) => (
+          <div
+            key={session.id}
+            className={`group flex items-center gap-2 px-3 py-2 mx-1 rounded-lg cursor-pointer transition-colors ${
+              session.id === currentSessionId
+                ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+            }`}
+            onClick={() => onSelectSession(session.id)}
+          >
+            <MessageSquare className="w-4 h-4 shrink-0" />
+            <span className="flex-1 text-sm truncate">{session.title}</span>
+            {onDeleteSession && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteSession(session.id);
+                }}
+                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-all"
+                aria-label="Delete chat"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function Sidebar({
+  isOpen,
+  onClose,
+  onNewChat,
+  sessions,
+  currentSessionId,
+  onSelectSession,
+  onDeleteSession,
+}: SidebarProps) {
   // Close sidebar on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -51,13 +102,12 @@ export default function Sidebar({ isOpen, onClose, onNewChat, onSelectChat }: Si
 
   const handleNewChat = () => {
     onNewChat();
-    onClose();
   };
 
-  const handleSelectChat = (chatId: string) => {
-    onSelectChat?.(chatId);
-    onClose();
-  };
+  // Categorize sessions by time
+  const categorized = categorizeSessionsByTime(sessions);
+
+  const hasAnySessions = sessions.length > 0;
 
   return (
     <>
@@ -106,73 +156,50 @@ export default function Sidebar({ isOpen, onClose, onNewChat, onSelectChat }: Si
         </div>
 
         {/* Chat History */}
-        <div className="flex-1 overflow-y-auto px-3 pb-4">
-          {/* Today */}
-          {MOCK_HISTORY.today.length > 0 && (
-            <HistorySection title="Today" chats={MOCK_HISTORY.today} onSelect={handleSelectChat} />
-          )}
-
-          {/* Yesterday */}
-          {MOCK_HISTORY.yesterday.length > 0 && (
-            <HistorySection title="Yesterday" chats={MOCK_HISTORY.yesterday} onSelect={handleSelectChat} />
-          )}
-
-          {/* Previous 7 Days */}
-          {MOCK_HISTORY.previous7Days.length > 0 && (
-            <HistorySection title="Previous 7 Days" chats={MOCK_HISTORY.previous7Days} onSelect={handleSelectChat} />
-          )}
-        </div>
-
-        {/* Bottom Section - User/Settings */}
-        <div className="p-3 border-t border-gray-200 dark:border-gray-800">
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors">
-            <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center">
-              <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+        <div className="flex-1 overflow-y-auto px-2 pb-4">
+          {hasAnySessions ? (
+            <>
+              <HistorySection
+                title="Today"
+                sessions={categorized.today}
+                currentSessionId={currentSessionId}
+                onSelectSession={onSelectSession}
+                onDeleteSession={onDeleteSession}
+              />
+              <HistorySection
+                title="Yesterday"
+                sessions={categorized.yesterday}
+                currentSessionId={currentSessionId}
+                onSelectSession={onSelectSession}
+                onDeleteSession={onDeleteSession}
+              />
+              <HistorySection
+                title="Previous 7 Days"
+                sessions={categorized.previous7Days}
+                currentSessionId={currentSessionId}
+                onSelectSession={onSelectSession}
+                onDeleteSession={onDeleteSession}
+              />
+              <HistorySection
+                title="Older"
+                sessions={categorized.older}
+                currentSessionId={currentSessionId}
+                onSelectSession={onSelectSession}
+                onDeleteSession={onDeleteSession}
+              />
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center px-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                No chat history yet
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                Start a new conversation
+              </p>
             </div>
-            <div className="flex-1 text-left">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">Guest User</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Settings</p>
-            </div>
-            <Settings className="w-4 h-4 text-gray-400" />
-          </button>
+          )}
         </div>
       </aside>
     </>
-  );
-}
-
-// History Section Component
-function HistorySection({
-  title,
-  chats,
-  onSelect,
-}: {
-  title: string;
-  chats: { id: string; title: string; preview: string }[];
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <div className="mb-4">
-      <h3 className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-        {title}
-      </h3>
-      <ul className="space-y-1">
-        {chats.map((chat) => (
-          <li key={chat.id}>
-            <button
-              onClick={() => onSelect(chat.id)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors text-left group"
-            >
-              <MessageSquare className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                  {chat.title}
-                </p>
-              </div>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
