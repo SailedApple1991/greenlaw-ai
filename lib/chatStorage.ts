@@ -4,7 +4,7 @@
  * Supports multiple chat sessions with history
  */
 
-import { Message } from "@/app/page";
+import { Message } from "@/lib/types";
 
 const STORAGE_KEY = "greenlaw_chat_sessions";
 const OLD_STORAGE_KEY = "greenlaw_chat_history"; // For migration

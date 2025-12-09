@@ -1,6 +1,6 @@
 "use client";
 
-import { Message } from "@/app/page";
+import { Message } from "@/lib/types";
 import React, { useMemo, useCallback, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
