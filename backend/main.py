@@ -342,6 +342,99 @@ def parse_citations_from_content(content: str) -> dict:
     }
 
 
+class HistoryMessage(BaseModel):
+    id: str
+    role: str
+    content: str
+    references: Optional[List[Reference]] = []
+
+
+class HistoryResponse(BaseModel):
+    session_id: str
+    messages: List[HistoryMessage]
+
+
+@app.get("/history/{session_id}", response_model=HistoryResponse)
+async def get_history(session_id: str, user_id: Optional[str] = None):
+    """
+    Get chat history for a session from RAGFlow.
+    This allows the frontend to recover conversation state after page navigation.
+    """
+    try:
+        if not RAGFLOW_API_KEY or not RAGFLOW_BASE_URL or not RAGFLOW_CHAT_ID:
+            raise HTTPException(
+                status_code=500,
+                detail="RAGFlow not configured"
+            )
+
+        user = user_id or "anonymous"
+        logger.info(f"User [{user}] fetching history for session: {session_id}")
+
+        # Get the assistant
+        assistant = get_ragflow_assistant()
+
+        # Find the session
+        session_key = f"{user}_{session_id}"
+        session = _sessions.get(session_key)
+
+        if not session:
+            # Try to find in RAGFlow
+            try:
+                sessions = assistant.list_sessions()
+                session = next((s for s in sessions if s.id == session_id), None)
+                if session:
+                    _sessions[session_key] = session
+            except Exception as e:
+                logger.warning(f"Error listing sessions: {e}")
+
+        if not session:
+            # Session not found, return empty
+            return HistoryResponse(session_id=session_id, messages=[])
+
+        # Get conversation history from RAGFlow using HTTP API
+        import requests as http_requests
+
+        api_url = f"{RAGFLOW_BASE_URL}/api/v1/chats/{RAGFLOW_CHAT_ID}/sessions/{session_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {RAGFLOW_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        response = http_requests.get(api_url, headers=headers, timeout=30)
+
+        messages = []
+        if response.status_code == 200:
+            result = response.json()
+            if result.get("code") == 0:
+                data = result.get("data", [])
+                for msg in data:
+                    role = msg.get("role", "assistant")
+                    content = msg.get("content", "")
+
+                    # Parse references if present
+                    refs = []
+                    if role == "assistant":
+                        parsed = parse_citations_from_content(content)
+                        content = parsed["content"]
+                        refs = parsed["references"]
+
+                    messages.append(HistoryMessage(
+                        id=msg.get("id", str(len(messages))),
+                        role=role,
+                        content=content,
+                        references=refs
+                    ))
+
+        logger.info(f"User [{user}] session [{session_id}] - Found {len(messages)} messages")
+        return HistoryResponse(session_id=session_id, messages=messages)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching history: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", "8000"))

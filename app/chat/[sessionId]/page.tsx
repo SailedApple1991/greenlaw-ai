@@ -8,18 +8,75 @@ import MessageInput from "@/components/MessageInput";
 import Sidebar from "@/components/Sidebar";
 import { Message } from "@/lib/types";
 import {
-  loadChatHistory,
   saveChatHistory,
-  getSessionId,
   getUserId,
   clearChatHistory,
   getAllSessions,
-  getCurrentSessionId,
   createNewSession,
   switchSession,
   deleteSession,
   ChatSession,
 } from "@/lib/chatStorage";
+
+// Storage key for pending requests
+const PENDING_REQUEST_KEY = "greenlaw_pending_request";
+
+interface PendingRequest {
+  sessionId: string;
+  userMessageContent: string;
+  timestamp: number;
+}
+
+// Save pending request to storage
+function savePendingRequest(sessionId: string, userMessageContent: string) {
+  const pending: PendingRequest = {
+    sessionId,
+    userMessageContent,
+    timestamp: Date.now(),
+  };
+  sessionStorage.setItem(PENDING_REQUEST_KEY, JSON.stringify(pending));
+}
+
+// Get pending request (don't clear - let the caller decide)
+function getPendingRequest(): PendingRequest | null {
+  const data = sessionStorage.getItem(PENDING_REQUEST_KEY);
+  if (!data) return null;
+  try {
+    const pending = JSON.parse(data) as PendingRequest;
+    // Expire after 10 minutes
+    if (Date.now() - pending.timestamp > 600000) {
+      sessionStorage.removeItem(PENDING_REQUEST_KEY);
+      return null;
+    }
+    return pending;
+  } catch {
+    return null;
+  }
+}
+
+function clearPendingRequest() {
+  sessionStorage.removeItem(PENDING_REQUEST_KEY);
+}
+
+// Fetch history from backend
+async function fetchBackendHistory(sessionId: string, userId: string): Promise<Message[]> {
+  try {
+    const response = await fetch(
+      `/api/history/${sessionId}?user_id=${encodeURIComponent(userId)}`
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return (data.messages || []).map((msg: { id: string; role: string; content: string; references?: { text: string; tooltip: string }[] }) => ({
+      id: msg.id,
+      role: msg.role as "user" | "assistant",
+      content: msg.content,
+      references: msg.references,
+    }));
+  } catch (error) {
+    console.error("Failed to fetch backend history:", error);
+    return [];
+  }
+}
 
 export default function ChatPage() {
   const router = useRouter();
@@ -33,6 +90,17 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+
+  // Track if component is mounted for safe state updates
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Refresh sessions list
   const refreshSessions = () => {
@@ -75,20 +143,47 @@ export default function ChatPage() {
     const allSessions = getAllSessions();
     setSessions(allSessions);
 
-    // Switch to the session from URL
-    const sessionMessages = switchSession(sessionId);
-    setMessages(sessionMessages);
+    // Switch to the session from URL (load from localStorage first)
+    const localMessages = switchSession(sessionId);
+    setMessages(localMessages);
     setHasLoadedHistory(true);
 
     // Check for pending message from landing page
     const pendingMessage = sessionStorage.getItem("pendingMessage");
-    if (pendingMessage && sessionMessages.length === 0) {
+    if (pendingMessage && localMessages.length === 0) {
       sessionStorage.removeItem("pendingMessage");
       // Send the pending message after a brief delay to ensure state is set
       setTimeout(() => {
         handleSend(pendingMessage);
       }, 100);
+      return; // Don't fetch backend history if we're sending a new message
     }
+
+    // Check if there's a pending request for this session
+    const pending = getPendingRequest();
+    const hasPendingForThisSession = pending && pending.sessionId === sessionId;
+
+    // Fetch history from backend to check for updates
+    const userId = getUserId();
+    fetchBackendHistory(sessionId, userId).then((backendMessages) => {
+      if (!isMountedRef.current) return;
+
+      // If backend has more messages than local, use backend data
+      if (backendMessages.length > localMessages.length) {
+        setMessages(backendMessages);
+        saveChatHistory(backendMessages);
+        // Clear pending request since we got the response
+        if (hasPendingForThisSession) {
+          clearPendingRequest();
+        }
+      } else if (hasPendingForThisSession) {
+        // We have a pending request but backend doesn't have the response yet
+        // Show loading state and retry the request
+        setIsLoading(true);
+        handleSend(pending.userMessageContent);
+        clearPendingRequest();
+      }
+    });
   }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-save messages when they change
@@ -123,6 +218,9 @@ export default function ChatPage() {
     setInput("");
     setIsLoading(true);
 
+    // Save pending request in case user navigates away
+    savePendingRequest(sessionId, message);
+
     try {
       // Prepare conversation history (exclude current message)
       const conversationHistory = messages.map((msg) => ({
@@ -156,18 +254,31 @@ export default function ChatPage() {
         ...aiResponse,
         id: `ai-${Date.now()}`,
       };
-      setMessages((prev) => [...prev, aiMessage]);
+
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setMessages((prev) => [...prev, aiMessage]);
+      }
+
+      // Clear pending request on success
+      clearPendingRequest();
     } catch (error) {
       console.error("Error sending message:", error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content:
-          "I apologize, but I encountered an error processing your request. Please try again.",
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      // Only show error if component is still mounted
+      if (isMountedRef.current) {
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content:
+            "I apologize, but I encountered an error processing your request. Please try again.",
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
+      // Don't clear pending request on error - user might want to retry
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 

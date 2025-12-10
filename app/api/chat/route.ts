@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { askGemini } from "@/lib/llm";
 
+// Increase timeout for long-running RAGFlow requests (5 minutes)
+export const maxDuration = 300;
+
 export async function POST(request: NextRequest) {
   try {
     const { message, conversation_history, session_id, user_id } = await request.json();
@@ -19,6 +22,10 @@ export async function POST(request: NextRequest) {
     // Option 1: Use FastAPI backend (connects to RAGFlow)
     if (USE_FASTAPI_BACKEND) {
       try {
+        // Create AbortController with 5 minute timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 300000);
+
         const backendResponse = await fetch(`${FASTAPI_BACKEND_URL}/chat`, {
           method: "POST",
           headers: {
@@ -32,7 +39,10 @@ export async function POST(request: NextRequest) {
             session_id: session_id,
             user_id: user_id,
           }),
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (!backendResponse.ok) {
           const errorData = await backendResponse.json().catch(() => ({}));
