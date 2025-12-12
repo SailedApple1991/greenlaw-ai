@@ -223,7 +223,7 @@ async def chat(request: ChatRequest):
                 "session_id": session.id
             }
 
-            response = http_requests.post(api_url, headers=headers, json=payload, timeout=120)
+            response = http_requests.post(api_url, headers=headers, json=payload, timeout=300)
             response.raise_for_status()
 
             result = response.json()

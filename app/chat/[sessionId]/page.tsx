@@ -350,16 +350,14 @@ export default function ChatPage() {
         </main>
 
         {/* Input fixed at bottom */}
-        <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-          <div className="flex justify-center">
-            <div className="w-full max-w-3xl px-4">
-              <MessageInput
-                value={input}
-                onChange={setInput}
-                onSend={handleSend}
-                disabled={isLoading}
-              />
-            </div>
+        <div className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4">
+          <div className="mx-auto max-w-3xl">
+            <MessageInput
+              value={input}
+              onChange={setInput}
+              onSend={handleSend}
+              disabled={isLoading}
+            />
           </div>
         </div>
       </div>
