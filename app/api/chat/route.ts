@@ -6,7 +6,7 @@ export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, conversation_history, session_id, user_id } = await request.json();
+    const { message, conversation_history, session_id, user_id, stream } = await request.json();
 
     if (!message || typeof message !== "string") {
       return NextResponse.json(
@@ -22,6 +22,38 @@ export async function POST(request: NextRequest) {
     // Option 1: Use FastAPI backend (connects to RAGFlow)
     if (USE_FASTAPI_BACKEND) {
       try {
+        // Streaming mode
+        if (stream) {
+          const backendResponse = await fetch(`${FASTAPI_BACKEND_URL}/chat/stream`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message,
+              stream: true,
+              reference: true,
+              conversation_history: conversation_history || [],
+              session_id: session_id,
+              user_id: user_id,
+            }),
+          });
+
+          if (!backendResponse.ok) {
+            throw new Error(`Backend error: ${backendResponse.statusText}`);
+          }
+
+          // Forward the SSE stream directly
+          return new Response(backendResponse.body, {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache",
+              "Connection": "keep-alive",
+            },
+          });
+        }
+
+        // Non-streaming mode
         // Create AbortController with 5 minute timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 300000);

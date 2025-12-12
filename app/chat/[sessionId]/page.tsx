@@ -201,9 +201,13 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // State for streaming message
+  const [streamingContent, setStreamingContent] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, streamingContent]);
 
   const handleSend = async (message: string) => {
     if (!message.trim()) return;
@@ -217,6 +221,8 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+    setStreamingContent("");
+    setIsStreaming(true);
 
     // Save pending request in case user navigates away
     savePendingRequest(sessionId, message);
@@ -231,7 +237,7 @@ export default function ChatPage() {
       // Get user ID for tracking
       const userId = getUserId();
 
-      // Call the API route with conversation history
+      // Call the streaming API
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -242,6 +248,7 @@ export default function ChatPage() {
           conversation_history: conversationHistory,
           session_id: sessionId,
           user_id: userId,
+          stream: true,
         }),
       });
 
@@ -249,23 +256,81 @@ export default function ChatPage() {
         throw new Error("Failed to get response");
       }
 
-      const aiResponse = await response.json();
-      const aiMessage: Message = {
-        ...aiResponse,
-        id: `ai-${Date.now()}`,
-      };
+      // Check if we got a streaming response
+      const contentType = response.headers.get("content-type");
+      if (contentType?.includes("text/event-stream")) {
+        // Handle SSE streaming
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let fullContent = "";
 
-      // Only update state if component is still mounted
-      if (isMountedRef.current) {
-        setMessages((prev) => [...prev, aiMessage]);
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split("\n");
+
+            for (const line of lines) {
+              if (line.startsWith("data:")) {
+                const jsonStr = line.slice(5).trim();
+                if (!jsonStr) continue;
+
+                try {
+                  const data = JSON.parse(jsonStr);
+
+                  if (data.error) {
+                    throw new Error(data.error);
+                  }
+
+                  if (data.chunk) {
+                    fullContent += data.chunk;
+                    if (isMountedRef.current) {
+                      setStreamingContent(fullContent);
+                    }
+                  }
+
+                  if (data.done) {
+                    // Stream complete
+                    if (isMountedRef.current) {
+                      const aiMessage: Message = {
+                        id: `ai-${Date.now()}`,
+                        role: "assistant",
+                        content: data.content || fullContent,
+                      };
+                      setMessages((prev) => [...prev, aiMessage]);
+                      setStreamingContent("");
+                      setIsStreaming(false);
+                    }
+                    clearPendingRequest();
+                  }
+                } catch (parseError) {
+                  console.warn("Failed to parse SSE data:", jsonStr);
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // Fallback to non-streaming JSON response
+        const aiResponse = await response.json();
+        const aiMessage: Message = {
+          ...aiResponse,
+          id: `ai-${Date.now()}`,
+        };
+
+        if (isMountedRef.current) {
+          setMessages((prev) => [...prev, aiMessage]);
+          setIsStreaming(false);
+        }
+        clearPendingRequest();
       }
-
-      // Clear pending request on success
-      clearPendingRequest();
     } catch (error) {
       console.error("Error sending message:", error);
       // Only show error if component is still mounted
       if (isMountedRef.current) {
+        setIsStreaming(false);
         const errorMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: "assistant",
@@ -314,8 +379,21 @@ export default function ChatPage() {
                     delay={index * 0.2}
                   />
                 ))}
-                {isLoading && (
-                  <div className="flex items-end gap-3 p-4 animate-fade-in">
+                {/* Streaming response - show as it comes in */}
+                {isStreaming && streamingContent && (
+                  <ChatBubble
+                    key="streaming"
+                    message={{
+                      id: "streaming",
+                      role: "assistant",
+                      content: streamingContent,
+                    }}
+                    delay={0}
+                  />
+                )}
+                {/* Loading indicator - show when waiting for first chunk or non-streaming */}
+                {isLoading && !streamingContent && (
+                  <div className="flex items-start gap-3 p-4 animate-fade-in">
                     <div
                       className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 h-10 shrink-0 shadow-sm"
                       style={{
@@ -328,16 +406,21 @@ export default function ChatPage() {
                         GreenLaw AI
                       </p>
                       <div className="px-4 py-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                        <div className="flex gap-1">
-                          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" />
-                          <div
-                            className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"
-                            style={{ animationDelay: "0.1s" }}
-                          />
-                          <div
-                            className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"
-                            style={{ animationDelay: "0.2s" }}
-                          />
+                        <div className="flex items-center gap-2">
+                          <div className="flex gap-1">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" />
+                            <div
+                              className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"
+                              style={{ animationDelay: "0.1s" }}
+                            />
+                            <div
+                              className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"
+                              style={{ animationDelay: "0.2s" }}
+                            />
+                          </div>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            正在思考...
+                          </span>
                         </div>
                       </div>
                     </div>
