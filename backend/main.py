@@ -307,6 +307,7 @@ async def stream_ragflow_response(session_id: str, message: str, user_id: str) -
         full_content = ""
         chunk_count = 0
         last_chunk_time = time.time()
+        done_sent = False
 
         for line in response.iter_lines():
             if not line:
@@ -326,6 +327,7 @@ async def stream_ragflow_response(session_id: str, message: str, user_id: str) -
                 json_str = line_str[5:].strip()
                 if json_str == '[DONE]':
                     # Stream finished
+                    done_sent = True
                     yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
                     break
 
@@ -370,6 +372,10 @@ async def stream_ragflow_response(session_id: str, message: str, user_id: str) -
         # Final summary log
         total_time = time.time() - start_time
         logger.info(f"User [{user_id}] streaming complete: {len(full_content)} chars, {chunk_count} chunks, {total_time:.2f}s total")
+
+        # Always send done signal if we have content and haven't sent it yet
+        if full_content and not done_sent:
+            yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
 
     except http_requests.exceptions.Timeout as e:
         elapsed = time.time() - start_time
