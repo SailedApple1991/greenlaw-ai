@@ -129,10 +129,14 @@ export default function Sidebar({
         {/* Header with Close button (mobile only) */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-semibold text-gray-900 dark:text-white">GreenLaw AI</span>
+            <svg className="w-8 h-8" viewBox="0 0 84.785 73.288" xmlns="http://www.w3.org/2000/svg">
+              <polygon points="48.622 0 48.622 72.327 84.785 36.164 48.622 0" fill="#9dd3c0"/>
+              <polygon points="60.741 37.124 24.577 .96 24.577 25.538 36.164 37.124 24.577 48.71 24.577 73.288 60.741 37.124" fill="#1ba577"/>
+              <polygon points="0 .96 0 12.679 24.445 37.124 0 61.569 0 73.288 24.577 48.71 24.577 25.538 0 .96" fill="#1ba577"/>
+            </svg>
+            <span className="font-semibold">
+              <span className="text-[#1ba577]">Sustain</span> <span className="text-[#9dd3c0]">Nexus</span>
+            </span>
           </div>
           {/* Close button - mobile only */}
           <button
