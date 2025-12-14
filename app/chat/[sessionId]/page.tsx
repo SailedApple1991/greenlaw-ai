@@ -263,52 +263,69 @@ export default function ChatPage() {
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
         let fullContent = "";
+        let streamCompleted = false;
 
         if (reader) {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
 
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split("\n");
+              const chunk = decoder.decode(value, { stream: true });
+              const lines = chunk.split("\n");
 
-            for (const line of lines) {
-              if (line.startsWith("data:")) {
-                const jsonStr = line.slice(5).trim();
-                if (!jsonStr) continue;
+              for (const line of lines) {
+                if (line.startsWith("data:")) {
+                  const jsonStr = line.slice(5).trim();
+                  if (!jsonStr) continue;
 
-                try {
-                  const data = JSON.parse(jsonStr);
+                  try {
+                    const data = JSON.parse(jsonStr);
 
-                  if (data.error) {
-                    throw new Error(data.error);
-                  }
-
-                  if (data.chunk) {
-                    fullContent += data.chunk;
-                    if (isMountedRef.current) {
-                      setStreamingContent(fullContent);
+                    if (data.error) {
+                      throw new Error(data.error);
                     }
-                  }
 
-                  if (data.done) {
-                    // Stream complete
-                    if (isMountedRef.current) {
-                      const aiMessage: Message = {
-                        id: `ai-${Date.now()}`,
-                        role: "assistant",
-                        content: data.content || fullContent,
-                      };
-                      setMessages((prev) => [...prev, aiMessage]);
-                      setStreamingContent("");
-                      setIsStreaming(false);
+                    if (data.chunk) {
+                      fullContent += data.chunk;
+                      if (isMountedRef.current) {
+                        setStreamingContent(fullContent);
+                      }
                     }
-                    clearPendingRequest();
+
+                    if (data.done) {
+                      // Stream complete
+                      streamCompleted = true;
+                      if (isMountedRef.current) {
+                        const aiMessage: Message = {
+                          id: `ai-${Date.now()}`,
+                          role: "assistant",
+                          content: data.content || fullContent,
+                        };
+                        setMessages((prev) => [...prev, aiMessage]);
+                        setStreamingContent("");
+                        setIsStreaming(false);
+                      }
+                      clearPendingRequest();
+                    }
+                  } catch (parseError) {
+                    console.warn("Failed to parse SSE data:", jsonStr);
                   }
-                } catch (parseError) {
-                  console.warn("Failed to parse SSE data:", jsonStr);
                 }
               }
+            }
+          } finally {
+            // If stream ended without "done" signal but we have content, save it
+            if (!streamCompleted && fullContent && isMountedRef.current) {
+              const aiMessage: Message = {
+                id: `ai-${Date.now()}`,
+                role: "assistant",
+                content: fullContent,
+              };
+              setMessages((prev) => [...prev, aiMessage]);
+              setStreamingContent("");
+              setIsStreaming(false);
+              clearPendingRequest();
             }
           }
         }
@@ -328,18 +345,36 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      // Only show error if component is still mounted
+      // Only show error if component is still mounted and no content was received
       if (isMountedRef.current) {
         setIsStreaming(false);
-        const errorMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content:
-            "I apologize, but I encountered an error processing your request. Please try again.",
-        };
-        setMessages((prev) => [...prev, errorMessage]);
+        // Check if we already have partial content from streaming
+        // If so, save it instead of showing error
+        setStreamingContent((currentContent) => {
+          if (currentContent) {
+            // We have partial content, save it as the response
+            const aiMessage: Message = {
+              id: `ai-${Date.now()}`,
+              role: "assistant",
+              content: currentContent,
+            };
+            setMessages((prev) => [...prev, aiMessage]);
+            clearPendingRequest();
+            return "";
+          } else {
+            // No content received, show error
+            const errorMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              role: "assistant",
+              content:
+                "I apologize, but I encountered an error processing your request. Please try again.",
+            };
+            setMessages((prev) => [...prev, errorMessage]);
+            return "";
+          }
+        });
       }
-      // Don't clear pending request on error - user might want to retry
+      // Don't clear pending request on error if no content - user might want to retry
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);
