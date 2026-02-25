@@ -202,8 +202,8 @@ def cleanup_expired_sessions():
 def get_or_create_session(assistant, session_id: Optional[str] = None, user_id: str = "anonymous"):
     """
     Get existing session or create a new one.
-    Session key includes user_id for better tracking.
-    Lock only protects dict read/write, not network calls.
+    Frontend session_id is a local UUID (not a RAGFlow session ID),
+    so we skip list_sessions() and go straight to create_session() on cache miss.
     """
     start_time = time.time()
 
@@ -211,43 +211,27 @@ def get_or_create_session(assistant, session_id: Optional[str] = None, user_id: 
     session_key = f"{user_id}_{session_id}" if session_id else None
 
     if not session_key:
-        session_name = f"user_{user_id}_new"
-        session = assistant.create_session(name=session_name)
+        session = assistant.create_session(name=f"user_{user_id}_new")
         logger.info(f"User [{user_id}] created new session: {session.id} in {time.time() - start_time:.2f}s")
         return session
 
-    # Fast path: check cache under lock (microseconds)
+    # Fast path: check cache (microseconds)
     with _sessions_lock:
         if session_key in _sessions:
             _sessions[session_key]["last_used"] = time.time()
-            logger.info(f"User [{user_id}] using cached session: {session_id} in {time.time() - start_time:.2f}s")
+            logger.info(f"User [{user_id}] cache hit: {session_id} in {time.time() - start_time:.2f}s")
             return _sessions[session_key]["session"]
 
-    # Slow path: network calls WITHOUT holding the lock
-    # Try to find existing session in RAGFlow
-    list_start = time.time()
-    try:
-        sessions = assistant.list_sessions()
-        logger.info(f"Listed {len(sessions)} sessions in {time.time() - list_start:.2f}s")
-        for sess in sessions:
-            if sess.id == session_id:
-                with _sessions_lock:
-                    _sessions[session_key] = {"session": sess, "last_used": time.time()}
-                logger.info(f"User [{user_id}] found existing session: {session_id} in {time.time() - start_time:.2f}s")
-                return sess
-    except Exception as e:
-        logger.warning(f"Error listing sessions after {time.time() - list_start:.2f}s: {e}")
-
-    # Session not found, create new one
+    # Cache miss: create new RAGFlow session directly
+    # (Frontend session_id is a local UUID, NOT a RAGFlow session ID,
+    #  so list_sessions() would never find a match — skip it entirely)
     short_id = session_id[:8] if session_id else 'new'
-    session_name = f"{user_id}_{short_id}"
-    session = assistant.create_session(name=session_name)
+    session = assistant.create_session(name=f"{user_id}_{short_id}")
     with _sessions_lock:
         _sessions[session_key] = {"session": session, "last_used": time.time()}
-        # Cleanup periodically
         if len(_sessions) > 0 and len(_sessions) % 10 == 0:
             cleanup_expired_sessions()
-    logger.info(f"User [{user_id}] created new session: {session.id} (name: {session_name}) in {time.time() - start_time:.2f}s")
+    logger.info(f"User [{user_id}] created session: {session.id} in {time.time() - start_time:.2f}s")
     return session
 
 
@@ -759,6 +743,17 @@ async def get_history(session_id: str, user_id: Optional[str] = None):
         elapsed = time.time() - request_start
         logger.error(f"User [{user}] error fetching history after {elapsed:.2f}s: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Pre-warm RAGFlow assistant on startup so first request doesn't pay list_chats() cost."""
+    try:
+        loop = asyncio.get_event_loop()
+        assistant = await loop.run_in_executor(_thread_pool, get_ragflow_assistant)
+        logger.info(f"Pre-warmed RAGFlow assistant: {assistant.name}")
+    except Exception as e:
+        logger.warning(f"Failed to pre-warm RAGFlow assistant (will retry on first request): {e}")
 
 
 if __name__ == "__main__":
