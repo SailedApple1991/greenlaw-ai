@@ -333,6 +333,38 @@ export default function ChatPage() {
                 }
               }
             }
+
+            // Process any remaining data left in the SSE buffer
+            if (sseBuffer.startsWith("data:")) {
+              const jsonStr = sseBuffer.slice(5).trim();
+              if (jsonStr) {
+                try {
+                  const data = JSON.parse(jsonStr);
+                  if (data.chunk) {
+                    fullContent += data.chunk;
+                    if (isMountedRef.current) {
+                      setStreamingContent(fullContent);
+                    }
+                  }
+                  if (data.done) {
+                    streamCompleted = true;
+                    if (isMountedRef.current) {
+                      const aiMessage: Message = {
+                        id: `ai-${Date.now()}`,
+                        role: "assistant",
+                        content: data.content || fullContent,
+                      };
+                      setMessages((prev) => [...prev, aiMessage]);
+                      setStreamingContent("");
+                      setIsStreaming(false);
+                    }
+                    clearPendingRequest();
+                  }
+                } catch {
+                  // ignore parse error on final buffer
+                }
+              }
+            }
           } finally {
             // If stream ended without "done" signal but we have content, save it
             if (!streamCompleted && fullContent && isMountedRef.current) {
