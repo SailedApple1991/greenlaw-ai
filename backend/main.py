@@ -309,7 +309,7 @@ async def stream_ragflow_response(session_id: str, message: str, user_id: str) -
         last_chunk_time = time.time()
         done_sent = False
 
-        for line in response.iter_lines():
+        for line in response.iter_lines(chunk_size=1):
             if not line:
                 continue
 
