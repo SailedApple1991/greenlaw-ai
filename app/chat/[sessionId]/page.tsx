@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ChatBubble from "@/components/ChatBubble";
 import Header from "@/components/Header";
@@ -220,6 +220,28 @@ export default function ChatPage() {
   // State for streaming message
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+
+  // Dynamic loading status (like Claude CLI)
+  const LOADING_STATES = [
+    "Searching knowledge base...",
+    "Analyzing documents...",
+    "Generating response...",
+    "Organizing references...",
+  ];
+  const [loadingStateIndex, setLoadingStateIndex] = useState(0);
+
+  useEffect(() => {
+    if (!isLoading || streamingContent) return;
+    const interval = setInterval(() => {
+      setLoadingStateIndex((prev) => (prev + 1) % LOADING_STATES.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isLoading, streamingContent, LOADING_STATES.length]);
+
+  // Reset loading state index when a new request starts
+  useEffect(() => {
+    if (isLoading) setLoadingStateIndex(0);
+  }, [isLoading]);
 
   useEffect(() => {
     scrollToBottom();
@@ -504,8 +526,8 @@ export default function ChatPage() {
                               style={{ animationDelay: "0.2s" }}
                             />
                           </div>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">
-                            正在思考...
+                          <span className="text-sm text-gray-500 dark:text-gray-400 transition-opacity duration-300">
+                            {LOADING_STATES[loadingStateIndex]}
                           </span>
                         </div>
                       </div>

@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional, List, AsyncGenerator
+from typing import Optional, List, Generator
 import os
 import json
 import time
@@ -275,7 +275,7 @@ def validate_ragflow_config():
         )
 
 
-async def stream_ragflow_response(session_id: str, message: str, user_id: str) -> AsyncGenerator[str, None]:
+def stream_ragflow_response(session_id: str, message: str, user_id: str):
     """
     Stream response from RAGFlow API using SSE format.
     Yields SSE-formatted data chunks.
