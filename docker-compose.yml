@@ -21,8 +21,9 @@ services:
       - "127.0.0.1:8000:8000"
     environment:
       - RAGFLOW_API_KEY=${RAGFLOW_API_KEY}
-      - RAGFLOW_BASE_URL=http://host.docker.internal:9380
+      - RAGFLOW_BASE_URL=${RAGFLOW_BASE_URL:-https://ragflow.sustain-nexus.com}
       - RAGFLOW_CHAT_ID=${RAGFLOW_CHAT_ID}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://greenlaw.sustain-nexus.com}
       - PORT=8000
     extra_hosts:
       - "host.docker.internal:host-gateway"
