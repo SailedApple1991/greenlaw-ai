@@ -44,7 +44,7 @@ interface LegacyStoredChat {
  * Generate a new session ID
  */
 function generateSessionId(): string {
-  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return crypto.randomUUID();
 }
 
 /**
@@ -67,16 +67,9 @@ export function getSessionId(): string {
 export function getUserId(): string {
   if (typeof window === "undefined") return "";
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const urlUserId = urlParams.get('user_id');
-  if (urlUserId) {
-    localStorage.setItem("greenlaw_user_id", urlUserId);
-    return urlUserId;
-  }
-
   let userId = localStorage.getItem("greenlaw_user_id");
   if (!userId) {
-    userId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    userId = crypto.randomUUID();
     localStorage.setItem("greenlaw_user_id", userId);
   }
   return userId;
@@ -94,7 +87,7 @@ export function clearUserId(): void {
  * Generate a title from the first user message
  */
 export function generateSessionTitle(messages: Message[]): string {
-  const firstUserMessage = messages.find(m => m.role === "user");
+  const firstUserMessage = messages.find((m) => m.role === "user");
   if (!firstUserMessage) return "New Chat";
 
   const content = firstUserMessage.content.trim();
@@ -165,7 +158,7 @@ function saveStoredSessions(data: StoredSessions): void {
     }
 
     // Limit messages per session
-    data.sessions = data.sessions.map(session => ({
+    data.sessions = data.sessions.map((session) => ({
       ...session,
       messages: session.messages.slice(-MAX_MESSAGES_PER_SESSION),
     }));
@@ -209,7 +202,7 @@ export function getCurrentSessionId(): string | null {
 export function getCurrentSession(): ChatSession | null {
   const data = getStoredSessions();
   if (!data.currentSessionId) return null;
-  return data.sessions.find(s => s.id === data.currentSessionId) || null;
+  return data.sessions.find((s) => s.id === data.currentSessionId) || null;
 }
 
 /**
@@ -246,7 +239,7 @@ export function saveCurrentSession(messages: Message[]): void {
     data.currentSessionId = sessionId;
   }
 
-  const existingIndex = data.sessions.findIndex(s => s.id === sessionId);
+  const existingIndex = data.sessions.findIndex((s) => s.id === sessionId);
   const now = Date.now();
 
   if (existingIndex >= 0) {
@@ -277,7 +270,7 @@ export function saveCurrentSession(messages: Message[]): void {
  */
 export function switchSession(sessionId: string): Message[] {
   const data = getStoredSessions();
-  const session = data.sessions.find(s => s.id === sessionId);
+  const session = data.sessions.find((s) => s.id === sessionId);
 
   if (!session) {
     console.warn(`Session ${sessionId} not found`);
@@ -296,7 +289,7 @@ export function switchSession(sessionId: string): Message[] {
  */
 export function deleteSession(sessionId: string): void {
   const data = getStoredSessions();
-  data.sessions = data.sessions.filter(s => s.id !== sessionId);
+  data.sessions = data.sessions.filter((s) => s.id !== sessionId);
 
   // If deleted current session, clear current
   if (data.currentSessionId === sessionId) {
@@ -392,14 +385,22 @@ export function categorizeSessionsByTime(sessions: ChatSession[]): {
   older: ChatSession[];
 } {
   const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const todayStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
   const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
   const weekStart = todayStart - 7 * 24 * 60 * 60 * 1000;
 
   return {
-    today: sessions.filter(s => s.updatedAt >= todayStart),
-    yesterday: sessions.filter(s => s.updatedAt >= yesterdayStart && s.updatedAt < todayStart),
-    previous7Days: sessions.filter(s => s.updatedAt >= weekStart && s.updatedAt < yesterdayStart),
-    older: sessions.filter(s => s.updatedAt < weekStart),
+    today: sessions.filter((s) => s.updatedAt >= todayStart),
+    yesterday: sessions.filter(
+      (s) => s.updatedAt >= yesterdayStart && s.updatedAt < todayStart,
+    ),
+    previous7Days: sessions.filter(
+      (s) => s.updatedAt >= weekStart && s.updatedAt < yesterdayStart,
+    ),
+    older: sessions.filter((s) => s.updatedAt < weekStart),
   };
 }

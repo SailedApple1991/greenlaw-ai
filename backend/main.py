@@ -11,6 +11,7 @@ import os
 import json
 import time
 import asyncio
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from ragflow_sdk import RAGFlow
 import logging
@@ -29,16 +30,14 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="GreenLaw AI Backend", version="1.0.0")
 
 # CORS middleware to allow Next.js frontend to call this API
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "*",  # 生产环境建议改为具体域名
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["POST", "GET", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Environment variables
@@ -184,6 +183,7 @@ async def root():
 # For production, use Redis or database
 # Format: {session_key: {"session": session_obj, "last_used": timestamp}}
 _sessions = {}
+_sessions_lock = threading.Lock()
 SESSION_EXPIRY_SECONDS = 3600  # 1 hour
 
 
@@ -203,50 +203,51 @@ def get_or_create_session(assistant, session_id: Optional[str] = None, user_id: 
     """
     Get existing session or create a new one.
     Session key includes user_id for better tracking.
+    Thread-safe via _sessions_lock.
     """
     start_time = time.time()
 
-    # Cleanup expired sessions periodically (every 10th call approximately)
-    if len(_sessions) > 0 and hash(str(time.time())) % 10 == 0:
-        cleanup_expired_sessions()
+    with _sessions_lock:
+        # Cleanup expired sessions periodically (every 10th call approximately)
+        if len(_sessions) > 0 and len(_sessions) % 10 == 0:
+            cleanup_expired_sessions()
 
-    # Build session key that includes user_id
-    session_key = f"{user_id}_{session_id}" if session_id else None
+        # Build session key that includes user_id
+        session_key = f"{user_id}_{session_id}" if session_id else None
 
-    if not session_key:
-        # Create new session with auto-generated ID
-        session_name = f"user_{user_id}_new"
+        if not session_key:
+            # Create new session with auto-generated ID
+            session_name = f"user_{user_id}_new"
+            session = assistant.create_session(name=session_name)
+            logger.info(f"User [{user_id}] created new session: {session.id} in {time.time() - start_time:.2f}s")
+            return session
+
+        # Check if we have this session cached
+        if session_key in _sessions:
+            _sessions[session_key]["last_used"] = time.time()
+            logger.info(f"User [{user_id}] using cached session: {session_id} in {time.time() - start_time:.2f}s")
+            return _sessions[session_key]["session"]
+
+        # Try to find existing session in RAGFlow
+        list_start = time.time()
+        try:
+            sessions = assistant.list_sessions()
+            logger.info(f"Listed {len(sessions)} sessions in {time.time() - list_start:.2f}s")
+            for sess in sessions:
+                if sess.id == session_id:
+                    _sessions[session_key] = {"session": sess, "last_used": time.time()}
+                    logger.info(f"User [{user_id}] found existing session: {session_id} in {time.time() - start_time:.2f}s")
+                    return sess
+        except Exception as e:
+            logger.warning(f"Error listing sessions after {time.time() - list_start:.2f}s: {e}")
+
+        # Session not found, create new one with user info in name
+        short_id = session_id[:8] if session_id else 'new'
+        session_name = f"{user_id}_{short_id}"
         session = assistant.create_session(name=session_name)
-        logger.info(f"User [{user_id}] created new session: {session.id} in {time.time() - start_time:.2f}s")
+        _sessions[session_key] = {"session": session, "last_used": time.time()}
+        logger.info(f"User [{user_id}] created new session: {session.id} (name: {session_name}) in {time.time() - start_time:.2f}s")
         return session
-
-    # Check if we have this session cached
-    if session_key in _sessions:
-        _sessions[session_key]["last_used"] = time.time()
-        logger.info(f"User [{user_id}] using cached session: {session_id} in {time.time() - start_time:.2f}s")
-        return _sessions[session_key]["session"]
-
-    # Try to find existing session in RAGFlow
-    list_start = time.time()
-    try:
-        sessions = assistant.list_sessions()
-        logger.info(f"Listed {len(sessions)} sessions in {time.time() - list_start:.2f}s")
-        for sess in sessions:
-            if sess.id == session_id:
-                _sessions[session_key] = {"session": sess, "last_used": time.time()}
-                logger.info(f"User [{user_id}] found existing session: {session_id} in {time.time() - start_time:.2f}s")
-                return sess
-    except Exception as e:
-        logger.warning(f"Error listing sessions after {time.time() - list_start:.2f}s: {e}")
-
-    # Session not found, create new one with user info in name
-    # Extract meaningful part from session_id (skip "session_" prefix)
-    short_id = session_id[8:16] if session_id and len(session_id) > 8 else (session_id or 'new')
-    session_name = f"{user_id}_{short_id}"
-    session = assistant.create_session(name=session_name)
-    _sessions[session_key] = {"session": session, "last_used": time.time()}
-    logger.info(f"User [{user_id}] created new session: {session.id} (name: {session_name}) in {time.time() - start_time:.2f}s")
-    return session
 
 
 async def get_or_create_session_async(assistant, session_id: Optional[str] = None, user_id: str = "anonymous"):

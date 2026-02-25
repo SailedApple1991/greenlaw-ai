@@ -59,19 +59,29 @@ function clearPendingRequest() {
 }
 
 // Fetch history from backend
-async function fetchBackendHistory(sessionId: string, userId: string): Promise<Message[]> {
+async function fetchBackendHistory(
+  sessionId: string,
+  userId: string,
+): Promise<Message[]> {
   try {
     const response = await fetch(
-      `/api/history/${sessionId}?user_id=${encodeURIComponent(userId)}`
+      `/api/history/${sessionId}?user_id=${encodeURIComponent(userId)}`,
     );
     if (!response.ok) return [];
     const data = await response.json();
-    return (data.messages || []).map((msg: { id: string; role: string; content: string; references?: { text: string; tooltip: string }[] }) => ({
-      id: msg.id,
-      role: msg.role as "user" | "assistant",
-      content: msg.content,
-      references: msg.references,
-    }));
+    return (data.messages || []).map(
+      (msg: {
+        id: string;
+        role: string;
+        content: string;
+        references?: { text: string; tooltip: string }[];
+      }) => ({
+        id: msg.id,
+        role: msg.role as "user" | "assistant",
+        content: msg.content,
+        references: msg.references,
+      }),
+    );
   } catch (error) {
     console.error("Failed to fetch backend history:", error);
     return [];
@@ -93,6 +103,14 @@ export default function ChatPage() {
 
   // Track if component is mounted for safe state updates
   const isMountedRef = useRef(true);
+
+  // Keep a ref to latest messages so handleSend always reads current state
+  const messagesRef = useRef<Message[]>([]);
+
+  // Keep messagesRef in sync with messages state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -152,10 +170,8 @@ export default function ChatPage() {
     const pendingMessage = sessionStorage.getItem("pendingMessage");
     if (pendingMessage && localMessages.length === 0) {
       sessionStorage.removeItem("pendingMessage");
-      // Send the pending message after a brief delay to ensure state is set
-      setTimeout(() => {
-        handleSend(pendingMessage);
-      }, 100);
+      // messagesRef is already synced, so handleSend reads correct state
+      handleSend(pendingMessage);
       return; // Don't fetch backend history if we're sending a new message
     }
 
@@ -228,8 +244,8 @@ export default function ChatPage() {
     savePendingRequest(sessionId, message);
 
     try {
-      // Prepare conversation history (exclude current message)
-      const conversationHistory = messages.map((msg) => ({
+      // Prepare conversation history using ref to avoid stale closure
+      const conversationHistory = messagesRef.current.map((msg) => ({
         role: msg.role,
         content: msg.content,
       }));
@@ -259,11 +275,12 @@ export default function ChatPage() {
       // Check if we got a streaming response
       const contentType = response.headers.get("content-type");
       if (contentType?.includes("text/event-stream")) {
-        // Handle SSE streaming
+        // Handle SSE streaming with line buffer for cross-packet safety
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
         let fullContent = "";
         let streamCompleted = false;
+        let sseBuffer = "";
 
         if (reader) {
           try {
@@ -271,8 +288,10 @@ export default function ChatPage() {
               const { done, value } = await reader.read();
               if (done) break;
 
-              const chunk = decoder.decode(value, { stream: true });
-              const lines = chunk.split("\n");
+              sseBuffer += decoder.decode(value, { stream: true });
+              const lines = sseBuffer.split("\n");
+              // Keep the last (potentially incomplete) line in the buffer
+              sseBuffer = lines.pop() ?? "";
 
               for (const line of lines) {
                 if (line.startsWith("data:")) {

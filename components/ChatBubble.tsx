@@ -5,6 +5,7 @@ import React, { useMemo, useCallback, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import {
   parseCitations,
   processCitationsForReact,
@@ -104,7 +105,7 @@ function CitationBadge({
     const gap = 8;
 
     const style: React.CSSProperties = {
-      position: 'fixed',
+      position: "fixed",
       width: tooltipWidth,
       zIndex: 9999,
     };
@@ -150,19 +151,19 @@ function CitationBadge({
 
   // Get tooltip classes (without positioning, just appearance)
   const getTooltipClasses = () => {
-    const baseClasses = "pointer-events-none p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl transition-all duration-200";
-    const visibilityClasses = isVisible ? "visible opacity-100" : "invisible opacity-0";
+    const baseClasses =
+      "pointer-events-none p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl transition-all duration-200";
+    const visibilityClasses = isVisible
+      ? "visible opacity-100"
+      : "invisible opacity-0";
     return `${baseClasses} ${visibilityClasses}`;
   };
 
   // Tooltip component (rendered with fixed positioning via portal-like behavior)
   const TooltipContent = () => (
-    <span
-      className={getTooltipClasses()}
-      style={tooltipStyle}
-    >
+    <span className={getTooltipClasses()} style={tooltipStyle}>
       <span className="font-semibold text-emerald-400 block mb-1">
-        [{number}] {label || ''}
+        [{number}] {label || ""}
       </span>
       <span className="leading-relaxed">{displayTooltip}</span>
     </span>
@@ -242,8 +243,18 @@ function ReferenceItem({ ref }: { ref: ParsedReference }) {
       <span className="absolute -right-2 top-1/2 -translate-y-1/2 translate-x-full whitespace-nowrap z-10">
         {copied ? (
           <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-md shadow-sm animate-fade-in-out flex items-center gap-1">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
             Copied!
           </span>
@@ -258,7 +269,13 @@ function ReferenceItem({ ref }: { ref: ParsedReference }) {
 }
 
 // Backend Reference Item with copy functionality (for message.references format)
-function BackendReferenceItem({ number, text }: { number: string; text: string }) {
+function BackendReferenceItem({
+  number,
+  text,
+}: {
+  number: string;
+  text: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -288,8 +305,18 @@ function BackendReferenceItem({ number, text }: { number: string; text: string }
       <span className="absolute -right-2 top-1/2 -translate-y-1/2 translate-x-full whitespace-nowrap z-10">
         {copied ? (
           <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-md shadow-sm animate-fade-in-out flex items-center gap-1">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
             Copied!
           </span>
@@ -304,11 +331,7 @@ function BackendReferenceItem({ number, text }: { number: string; text: string }
 }
 
 // References Section Component
-function ReferencesSection({
-  references,
-}: {
-  references: ParsedReference[];
-}) {
+function ReferencesSection({ references }: { references: ParsedReference[] }) {
   if (references.length === 0) return null;
 
   return (
@@ -374,7 +397,7 @@ function MarkdownContent({
         return <span key={index}>{part}</span>;
       });
     },
-    [citationMap]
+    [citationMap],
   );
 
   // Process children recursively to handle citations in nested elements
@@ -384,7 +407,11 @@ function MarkdownContent({
         if (typeof child === "string") {
           // Check if this string contains citation markers
           if (child.includes("{{CITATION:")) {
-            return <React.Fragment key={idx}>{renderTextWithCitations(child)}</React.Fragment>;
+            return (
+              <React.Fragment key={idx}>
+                {renderTextWithCitations(child)}
+              </React.Fragment>
+            );
           }
           return child;
         }
@@ -401,13 +428,13 @@ function MarkdownContent({
         return child;
       });
     },
-    [renderTextWithCitations]
+    [renderTextWithCitations],
   );
 
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeRaw]}
+      rehypePlugins={[rehypeRaw, rehypeSanitize]}
       components={{
         // Paragraph styling
         p: ({ children }) => (
@@ -457,7 +484,9 @@ function MarkdownContent({
           </strong>
         ),
         em: ({ children }) => (
-          <em className="italic text-gray-800 dark:text-gray-200">{children}</em>
+          <em className="italic text-gray-800 dark:text-gray-200">
+            {children}
+          </em>
         ),
 
         // Code
@@ -495,7 +524,6 @@ function MarkdownContent({
             {children}
           </a>
         ),
-
       }}
     >
       {processedContent}
@@ -514,7 +542,7 @@ export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
 
     // Parse citations from the message content
     const { mainContent, references, citationMap } = parseCitations(
-      message.content
+      message.content,
     );
 
     // Merge backend references into citationMap (for tooltip display)
@@ -527,7 +555,7 @@ export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
             number,
             title: ref.text.substring(0, 60),
             description: ref.text,
-            text: ref.text
+            text: ref.text,
           });
         }
       });
@@ -604,35 +632,37 @@ export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
 
           {/* Backend format: message.references array with {text, tooltip} */}
           {/* text = full citation text, tooltip = reference number */}
-          {message.references && message.references.length > 0 && !parsedContent?.references.length && (
-            <div className="references-section bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 mt-4">
-              <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                  />
-                </svg>
-                References
-              </h4>
-              <ul className="space-y-2">
-                {message.references.map((ref, index) => (
-                  <BackendReferenceItem
-                    key={index}
-                    number={ref.tooltip || String(index + 1)}
-                    text={ref.text}
-                  />
-                ))}
-              </ul>
-            </div>
-          )}
+          {message.references &&
+            message.references.length > 0 &&
+            !parsedContent?.references.length && (
+              <div className="references-section bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 mt-4">
+                <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                    />
+                  </svg>
+                  References
+                </h4>
+                <ul className="space-y-2">
+                  {message.references.map((ref, index) => (
+                    <BackendReferenceItem
+                      key={index}
+                      number={ref.tooltip || String(index + 1)}
+                      text={ref.text}
+                    />
+                  ))}
+                </ul>
+              </div>
+            )}
         </div>
       </div>
     </div>
