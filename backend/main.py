@@ -203,51 +203,52 @@ def get_or_create_session(assistant, session_id: Optional[str] = None, user_id: 
     """
     Get existing session or create a new one.
     Session key includes user_id for better tracking.
-    Thread-safe via _sessions_lock.
+    Lock only protects dict read/write, not network calls.
     """
     start_time = time.time()
 
+    # Build session key that includes user_id
+    session_key = f"{user_id}_{session_id}" if session_id else None
+
+    if not session_key:
+        session_name = f"user_{user_id}_new"
+        session = assistant.create_session(name=session_name)
+        logger.info(f"User [{user_id}] created new session: {session.id} in {time.time() - start_time:.2f}s")
+        return session
+
+    # Fast path: check cache under lock (microseconds)
     with _sessions_lock:
-        # Cleanup expired sessions periodically (every 10th call approximately)
-        if len(_sessions) > 0 and len(_sessions) % 10 == 0:
-            cleanup_expired_sessions()
-
-        # Build session key that includes user_id
-        session_key = f"{user_id}_{session_id}" if session_id else None
-
-        if not session_key:
-            # Create new session with auto-generated ID
-            session_name = f"user_{user_id}_new"
-            session = assistant.create_session(name=session_name)
-            logger.info(f"User [{user_id}] created new session: {session.id} in {time.time() - start_time:.2f}s")
-            return session
-
-        # Check if we have this session cached
         if session_key in _sessions:
             _sessions[session_key]["last_used"] = time.time()
             logger.info(f"User [{user_id}] using cached session: {session_id} in {time.time() - start_time:.2f}s")
             return _sessions[session_key]["session"]
 
-        # Try to find existing session in RAGFlow
-        list_start = time.time()
-        try:
-            sessions = assistant.list_sessions()
-            logger.info(f"Listed {len(sessions)} sessions in {time.time() - list_start:.2f}s")
-            for sess in sessions:
-                if sess.id == session_id:
+    # Slow path: network calls WITHOUT holding the lock
+    # Try to find existing session in RAGFlow
+    list_start = time.time()
+    try:
+        sessions = assistant.list_sessions()
+        logger.info(f"Listed {len(sessions)} sessions in {time.time() - list_start:.2f}s")
+        for sess in sessions:
+            if sess.id == session_id:
+                with _sessions_lock:
                     _sessions[session_key] = {"session": sess, "last_used": time.time()}
-                    logger.info(f"User [{user_id}] found existing session: {session_id} in {time.time() - start_time:.2f}s")
-                    return sess
-        except Exception as e:
-            logger.warning(f"Error listing sessions after {time.time() - list_start:.2f}s: {e}")
+                logger.info(f"User [{user_id}] found existing session: {session_id} in {time.time() - start_time:.2f}s")
+                return sess
+    except Exception as e:
+        logger.warning(f"Error listing sessions after {time.time() - list_start:.2f}s: {e}")
 
-        # Session not found, create new one with user info in name
-        short_id = session_id[:8] if session_id else 'new'
-        session_name = f"{user_id}_{short_id}"
-        session = assistant.create_session(name=session_name)
+    # Session not found, create new one
+    short_id = session_id[:8] if session_id else 'new'
+    session_name = f"{user_id}_{short_id}"
+    session = assistant.create_session(name=session_name)
+    with _sessions_lock:
         _sessions[session_key] = {"session": session, "last_used": time.time()}
-        logger.info(f"User [{user_id}] created new session: {session.id} (name: {session_name}) in {time.time() - start_time:.2f}s")
-        return session
+        # Cleanup periodically
+        if len(_sessions) > 0 and len(_sessions) % 10 == 0:
+            cleanup_expired_sessions()
+    logger.info(f"User [{user_id}] created new session: {session.id} (name: {session_name}) in {time.time() - start_time:.2f}s")
+    return session
 
 
 async def get_or_create_session_async(assistant, session_id: Optional[str] = None, user_id: str = "anonymous"):
@@ -310,7 +311,7 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
         last_chunk_time = time.time()
         done_sent = False
 
-        for line in response.iter_lines(chunk_size=1):
+        for line in response.iter_lines(chunk_size=256):
             if not line:
                 continue
 
