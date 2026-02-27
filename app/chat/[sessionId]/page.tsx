@@ -305,6 +305,62 @@ export default function ChatPage() {
         let sseBuffer = "";
 
         if (reader) {
+          // Helper to save completed content to messages
+          const saveContent = (content: string) => {
+            if (isMountedRef.current && content) {
+              const aiMessage: Message = {
+                id: `ai-${Date.now()}`,
+                role: "assistant",
+                content,
+              };
+              setMessages((prev) => [...prev, aiMessage]);
+              setStreamingContent("");
+              setIsStreaming(false);
+            }
+            clearPendingRequest();
+          };
+
+          // Helper to process a single parsed SSE data object
+          const processSSEData = (data: Record<string, unknown>) => {
+            if (data.error) {
+              // Backend error — but we may already have partial content
+              // If we have content from the same stream, use it
+              // The error + done often come together from backend
+              console.error("Backend stream error:", data.error);
+              if (data.done && fullContent) {
+                streamCompleted = true;
+                saveContent(fullContent);
+                return;
+              }
+              // If the done event has content attached, use that
+              if (data.done && data.content) {
+                streamCompleted = true;
+                saveContent(data.content as string);
+                return;
+              }
+              // No content at all — propagate error
+              if (!fullContent) {
+                throw new Error(data.error as string);
+              }
+              // Have partial content — save what we have
+              streamCompleted = true;
+              saveContent(fullContent);
+              return;
+            }
+
+            if (data.chunk) {
+              fullContent += data.chunk;
+              if (isMountedRef.current) {
+                setStreamingContent(fullContent);
+              }
+            }
+
+            if (data.done) {
+              streamCompleted = true;
+              saveContent((data.content as string) || fullContent);
+            }
+          };
+
           try {
             while (true) {
               const { done, value } = await reader.read();
@@ -322,35 +378,14 @@ export default function ChatPage() {
 
                   try {
                     const data = JSON.parse(jsonStr);
-
-                    if (data.error) {
-                      throw new Error(data.error);
+                    processSSEData(data);
+                  } catch (e) {
+                    // Only warn for JSON parse errors, re-throw app errors
+                    if (e instanceof SyntaxError) {
+                      console.warn("Failed to parse SSE data:", jsonStr);
+                    } else {
+                      throw e;
                     }
-
-                    if (data.chunk) {
-                      fullContent += data.chunk;
-                      if (isMountedRef.current) {
-                        setStreamingContent(fullContent);
-                      }
-                    }
-
-                    if (data.done) {
-                      // Stream complete
-                      streamCompleted = true;
-                      if (isMountedRef.current) {
-                        const aiMessage: Message = {
-                          id: `ai-${Date.now()}`,
-                          role: "assistant",
-                          content: data.content || fullContent,
-                        };
-                        setMessages((prev) => [...prev, aiMessage]);
-                        setStreamingContent("");
-                        setIsStreaming(false);
-                      }
-                      clearPendingRequest();
-                    }
-                  } catch (parseError) {
-                    console.warn("Failed to parse SSE data:", jsonStr);
                   }
                 }
               }
@@ -362,43 +397,16 @@ export default function ChatPage() {
               if (jsonStr) {
                 try {
                   const data = JSON.parse(jsonStr);
-                  if (data.chunk) {
-                    fullContent += data.chunk;
-                    if (isMountedRef.current) {
-                      setStreamingContent(fullContent);
-                    }
-                  }
-                  if (data.done) {
-                    streamCompleted = true;
-                    if (isMountedRef.current) {
-                      const aiMessage: Message = {
-                        id: `ai-${Date.now()}`,
-                        role: "assistant",
-                        content: data.content || fullContent,
-                      };
-                      setMessages((prev) => [...prev, aiMessage]);
-                      setStreamingContent("");
-                      setIsStreaming(false);
-                    }
-                    clearPendingRequest();
-                  }
-                } catch {
-                  // ignore parse error on final buffer
+                  processSSEData(data);
+                } catch (e) {
+                  if (!(e instanceof SyntaxError)) throw e;
                 }
               }
             }
           } finally {
             // If stream ended without "done" signal but we have content, save it
             if (!streamCompleted && fullContent && isMountedRef.current) {
-              const aiMessage: Message = {
-                id: `ai-${Date.now()}`,
-                role: "assistant",
-                content: fullContent,
-              };
-              setMessages((prev) => [...prev, aiMessage]);
-              setStreamingContent("");
-              setIsStreaming(false);
-              clearPendingRequest();
+              saveContent(fullContent);
             }
           }
         }
@@ -418,36 +426,19 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      // Only show error if component is still mounted and no content was received
       if (isMountedRef.current) {
         setIsStreaming(false);
-        // Check if we already have partial content from streaming
-        // If so, save it instead of showing error
-        setStreamingContent((currentContent) => {
-          if (currentContent) {
-            // We have partial content, save it as the response
-            const aiMessage: Message = {
-              id: `ai-${Date.now()}`,
-              role: "assistant",
-              content: currentContent,
-            };
-            setMessages((prev) => [...prev, aiMessage]);
-            clearPendingRequest();
-            return "";
-          } else {
-            // No content received, show error
-            const errorMessage: Message = {
-              id: (Date.now() + 1).toString(),
-              role: "assistant",
-              content:
-                "I apologize, but I encountered an error processing your request. Please try again.",
-            };
-            setMessages((prev) => [...prev, errorMessage]);
-            return "";
-          }
-        });
+        setStreamingContent("");
+        // Show error message with the actual error detail
+        const errorDetail =
+          error instanceof Error ? error.message : "Unknown error";
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: `Request failed: ${errorDetail}. Please try again.`,
+        };
+        setMessages((prev) => [...prev, errorMessage]);
       }
-      // Don't clear pending request on error if no content - user might want to retry
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);
