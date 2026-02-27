@@ -128,7 +128,7 @@ export default function ChatPage() {
   // Clear history and return to landing
   const handleClearChat = () => {
     clearChatHistory();
-    router.push("/");
+    router.push("/chat");
   };
 
   // Handle new chat - create new session and navigate
@@ -152,7 +152,7 @@ export default function ChatPage() {
     refreshSessions();
     // If deleted current session, go to landing
     if (deletedSessionId === sessionId) {
-      router.push("/");
+      router.push("/chat");
     }
   };
 

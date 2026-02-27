@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useCallback } from "react";
-import { Message } from "@/app/page";
+import { Message } from "@/lib/types";
 import {
   saveChatHistory,
   loadChatHistory,
@@ -19,7 +19,7 @@ interface UseChatHistoryOptions {
 export function useChatHistory(
   messages: Message[],
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>,
-  options: UseChatHistoryOptions = {}
+  options: UseChatHistoryOptions = {},
 ) {
   const { autoSave = true, autoLoad = true } = options;
 
@@ -73,4 +73,3 @@ export function useChatHistory(
     getSessionInfo,
   };
 }
-

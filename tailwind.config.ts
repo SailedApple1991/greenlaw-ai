@@ -14,6 +14,9 @@ const config: Config = {
         "background-light": "#f7fafc",
         "background-dark": "#1a202c",
       },
+      backgroundImage: {
+        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+      },
       fontFamily: {
         display: ["Manrope", "sans-serif"],
       },
