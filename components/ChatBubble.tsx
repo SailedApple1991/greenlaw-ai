@@ -20,8 +20,8 @@ interface ChatBubbleProps {
 // Tooltip position types
 type TooltipPosition = "top" | "bottom" | "left" | "right";
 
-// Citation Badge Component with Smart Tooltip Positioning
-function CitationBadge({
+// Superscript Citation with Smart Tooltip
+function CitationSup({
   number,
   label,
   tooltipText,
@@ -31,11 +31,10 @@ function CitationBadge({
   tooltipText?: string;
 }) {
   const displayTooltip = tooltipText || `Reference ${number}`;
-  const badgeRef = useRef<HTMLSpanElement>(null);
+  const badgeRef = useRef<HTMLElement>(null);
   const [position, setPosition] = useState<TooltipPosition>("top");
   const [isVisible, setIsVisible] = useState(false);
 
-  // Calculate best position for tooltip based on viewport
   const calculatePosition = useCallback(() => {
     if (!badgeRef.current) return;
 
@@ -43,48 +42,35 @@ function CitationBadge({
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    const tooltipWidth = 320; // w-80 = 20rem = 320px
-    const tooltipHeight = 120; // approximate height with content
-    const margin = 20; // spacing from edge
+    const tooltipWidth = 320;
+    const tooltipHeight = 120;
+    const margin = 20;
 
-    // Check available space in each direction
     const spaceTop = rect.top;
     const spaceBottom = viewportHeight - rect.bottom;
     const spaceLeft = rect.left;
     const spaceRight = viewportWidth - rect.right;
 
-    // Determine position based on available space
-    // Priority: check which edges are close, then pick best direction
-
-    // Near top edge of viewport -> show below
     if (spaceTop < tooltipHeight + margin) {
       setPosition("bottom");
       return;
     }
-
-    // Near bottom edge of viewport -> show above
     if (spaceBottom < tooltipHeight + margin) {
       setPosition("top");
       return;
     }
-
-    // Near left edge -> show right
     if (spaceLeft < tooltipWidth / 2 + margin) {
       if (spaceRight >= tooltipWidth + margin) {
         setPosition("right");
         return;
       }
     }
-
-    // Near right edge -> show left
     if (spaceRight < tooltipWidth / 2 + margin) {
       if (spaceLeft >= tooltipWidth + margin) {
         setPosition("left");
         return;
       }
     }
-
-    // Default: show above (most common case for inline content)
     setPosition("top");
   }, []);
 
@@ -92,10 +78,8 @@ function CitationBadge({
     setIsVisible(false);
   }, []);
 
-  // Calculate tooltip style with fixed positioning to avoid clipping
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
 
-  // Update tooltip position using fixed positioning
   const updateTooltipStyle = useCallback(() => {
     if (!badgeRef.current) return;
 
@@ -114,7 +98,6 @@ function CitationBadge({
       case "top":
         style.left = rect.left + rect.width / 2 - tooltipWidth / 2;
         style.top = rect.top - tooltipHeight - gap;
-        // Prevent horizontal overflow
         if ((style.left as number) < 10) style.left = 10;
         if ((style.left as number) + tooltipWidth > window.innerWidth - 10) {
           style.left = window.innerWidth - tooltipWidth - 10;
@@ -141,25 +124,21 @@ function CitationBadge({
     setTooltipStyle(style);
   }, [position]);
 
-  // Handle mouse enter - calculate position and show tooltip
   const handleMouseEnter = useCallback(() => {
     calculatePosition();
     setIsVisible(true);
-    // Delay style calculation to ensure position is set
     setTimeout(() => updateTooltipStyle(), 0);
   }, [calculatePosition, updateTooltipStyle]);
 
-  // Get tooltip classes (without positioning, just appearance)
   const getTooltipClasses = () => {
     const baseClasses =
-      "pointer-events-none p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl transition-all duration-200";
+      "pointer-events-none p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl transition-all duration-200 font-display";
     const visibilityClasses = isVisible
       ? "visible opacity-100"
       : "invisible opacity-0";
     return `${baseClasses} ${visibilityClasses}`;
   };
 
-  // Tooltip component (rendered with fixed positioning via portal-like behavior)
   const TooltipContent = () => (
     <span className={getTooltipClasses()} style={tooltipStyle}>
       <span className="font-semibold text-emerald-400 block mb-1">
@@ -169,54 +148,48 @@ function CitationBadge({
     </span>
   );
 
-  // If label exists, show "Label [number]" style badge
+  // If label exists, show "Label" with superscript number
   if (label) {
     return (
       <>
         <span
           ref={badgeRef}
-          className="relative inline-flex items-center bg-emerald-50 dark:bg-emerald-900/30 rounded-md px-2 py-0.5 mx-0.5 border border-emerald-200 dark:border-emerald-800 cursor-help"
+          className="inline cursor-pointer"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <span className="text-emerald-600 dark:text-emerald-400 font-medium text-sm">
+          <span className="text-emerald-700 dark:text-emerald-400 font-medium text-[0.95em]">
             {label}
           </span>
-          <span className="text-emerald-500 dark:text-emerald-300 text-xs ml-1 font-semibold">
-            [{number}]
-          </span>
+          <sup className="citation-sup">{number}</sup>
         </span>
-        {/* Fixed position tooltip */}
         {isVisible && <TooltipContent />}
       </>
     );
   }
 
-  // No label - just show "[number]" badge
+  // No label - just superscript number
   return (
     <>
-      <span
+      <sup
         ref={badgeRef}
-        className="relative inline-block ml-0.5 align-baseline"
+        className="citation-sup"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        <span className="cursor-pointer text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300 px-1.5 py-0.5 rounded hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-500 transition-colors">
-          [{number}]
-        </span>
-      </span>
-      {/* Fixed position tooltip */}
+        {number}
+      </sup>
       {isVisible && <TooltipContent />}
     </>
   );
 }
 
 // Single Reference Item with copy functionality
-function ReferenceItem({ ref }: { ref: ParsedReference }) {
+function ReferenceItem({ reference }: { reference: ParsedReference }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    const textToCopy = `[${ref.number}] ${ref.text}`;
+    const textToCopy = `[${reference.number}] ${reference.text}`;
     try {
       await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
@@ -228,21 +201,20 @@ function ReferenceItem({ ref }: { ref: ParsedReference }) {
 
   return (
     <li
-      id={`ref-${ref.number}`}
-      className="relative text-sm p-2.5 hover:bg-white dark:hover:bg-gray-800 hover:shadow-sm rounded-md transition-all cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-700 group"
+      id={`ref-${reference.number}`}
+      className="relative text-sm py-2.5 px-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded transition-colors cursor-pointer group font-serif leading-relaxed border-l-2 border-emerald-400 dark:border-emerald-600 ml-1"
       onClick={handleCopy}
     >
-      <span className="text-gray-700 dark:text-gray-300 leading-relaxed pr-20">
-        <span className="cursor-pointer text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300 px-1.5 py-0.5 rounded mr-2">
-          [{ref.number}]
+      <span className="text-gray-600 dark:text-gray-400">
+        <span className="font-display text-xs font-bold text-emerald-700 dark:text-emerald-400 mr-2">
+          {reference.number}.
         </span>
-        {ref.text}
+        {reference.text}
       </span>
 
-      {/* Floating copy indicator / toast outside text */}
       <span className="absolute -right-2 top-1/2 -translate-y-1/2 translate-x-full whitespace-nowrap z-10">
         {copied ? (
-          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-md shadow-sm animate-fade-in-out flex items-center gap-1">
+          <span className="text-xs font-medium font-display text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-md shadow-sm animate-fade-in-out flex items-center gap-1">
             <svg
               className="w-3.5 h-3.5"
               fill="none"
@@ -259,7 +231,7 @@ function ReferenceItem({ ref }: { ref: ParsedReference }) {
             Copied!
           </span>
         ) : (
-          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md shadow-sm">
+          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs font-display text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md shadow-sm">
             Click to copy
           </span>
         )}
@@ -268,7 +240,7 @@ function ReferenceItem({ ref }: { ref: ParsedReference }) {
   );
 }
 
-// Backend Reference Item with copy functionality (for message.references format)
+// Backend Reference Item with copy functionality
 function BackendReferenceItem({
   number,
   text,
@@ -291,20 +263,19 @@ function BackendReferenceItem({
 
   return (
     <li
-      className="relative text-sm p-2.5 hover:bg-white dark:hover:bg-gray-800 hover:shadow-sm rounded-md transition-all cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-700 group"
+      className="relative text-sm py-2.5 px-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded transition-colors cursor-pointer group font-serif leading-relaxed border-l-2 border-emerald-400 dark:border-emerald-600 ml-1"
       onClick={handleCopy}
     >
-      <span className="text-gray-700 dark:text-gray-300 leading-relaxed pr-20">
-        <span className="cursor-pointer text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300 px-1.5 py-0.5 rounded mr-2">
-          [{number}]
+      <span className="text-gray-600 dark:text-gray-400">
+        <span className="font-display text-xs font-bold text-emerald-700 dark:text-emerald-400 mr-2">
+          {number}.
         </span>
         {text}
       </span>
 
-      {/* Floating copy indicator / toast outside text */}
       <span className="absolute -right-2 top-1/2 -translate-y-1/2 translate-x-full whitespace-nowrap z-10">
         {copied ? (
-          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-md shadow-sm animate-fade-in-out flex items-center gap-1">
+          <span className="text-xs font-medium font-display text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-md shadow-sm animate-fade-in-out flex items-center gap-1">
             <svg
               className="w-3.5 h-3.5"
               fill="none"
@@ -321,7 +292,7 @@ function BackendReferenceItem({
             Copied!
           </span>
         ) : (
-          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md shadow-sm">
+          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs font-display text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md shadow-sm">
             Click to copy
           </span>
         )}
@@ -330,13 +301,31 @@ function BackendReferenceItem({
   );
 }
 
-// References Section Component
+// Collapsible References Section
 function ReferencesSection({ references }: { references: ParsedReference[] }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   if (references.length === 0) return null;
 
   return (
-    <div className="references-section bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 mt-4">
-      <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+    <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 text-sm font-display font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+      >
+        <svg
+          className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
         <svg
           className="w-4 h-4"
           fill="none"
@@ -350,14 +339,18 @@ function ReferencesSection({ references }: { references: ParsedReference[] }) {
             d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
           />
         </svg>
-        References
-      </h4>
+        References ({references.length})
+      </button>
 
-      <ul className="space-y-2">
-        {references.map((ref) => (
-          <ReferenceItem key={ref.number} ref={ref} />
-        ))}
-      </ul>
+      <div className={`references-collapse ${isOpen ? "open" : ""}`}>
+        <div>
+          <ul className="space-y-1 mt-3">
+            {references.map((ref) => (
+              <ReferenceItem key={ref.number} reference={ref} />
+            ))}
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }
@@ -370,12 +363,10 @@ function MarkdownContent({
   content: string;
   citationMap: Map<string, ParsedReference>;
 }) {
-  // Process citations in the content
   const processedContent = useMemo(() => {
     return processCitationsForReact(content, citationMap);
   }, [content, citationMap]);
 
-  // Custom component to render text with citations
   const renderTextWithCitations = useCallback(
     (text: string): React.ReactNode => {
       const parts = text.split(/(\{\{CITATION:\d+:[^}]*\}\})/g);
@@ -386,7 +377,7 @@ function MarkdownContent({
           const [, number, label] = citationMatch;
           const reference = citationMap.get(number);
           return (
-            <CitationBadge
+            <CitationSup
               key={index}
               number={number}
               label={label || undefined}
@@ -400,12 +391,10 @@ function MarkdownContent({
     [citationMap],
   );
 
-  // Process children recursively to handle citations in nested elements
   const processChildren = useCallback(
     (children: React.ReactNode): React.ReactNode => {
       return React.Children.map(children, (child, idx) => {
         if (typeof child === "string") {
-          // Check if this string contains citation markers
           if (child.includes("{{CITATION:")) {
             return (
               <React.Fragment key={idx}>
@@ -416,7 +405,6 @@ function MarkdownContent({
           return child;
         }
         if (React.isValidElement(child)) {
-          // Recursively process child elements
           const childProps = child.props as { children?: React.ReactNode };
           if (childProps.children) {
             return React.cloneElement(child, {
@@ -436,48 +424,40 @@ function MarkdownContent({
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[rehypeRaw, rehypeSanitize]}
       components={{
-        // Paragraph styling
         p: ({ children }) => (
-          <p className="mb-4 text-gray-700 dark:text-gray-300 leading-[1.7] text-[15px]">
-            {processChildren(children)}
-          </p>
+          <p className="mb-5 leading-[1.8]">{processChildren(children)}</p>
         ),
 
-        // Headers
         h1: ({ children }) => (
-          <h1 className="text-2xl font-bold mt-6 mb-4 text-gray-900 dark:text-white">
+          <h1 className="text-2xl font-semibold mt-6 mb-4 text-gray-900 dark:text-white font-serif">
             {children}
           </h1>
         ),
         h2: ({ children }) => (
-          <h2 className="text-xl font-bold mt-5 mb-3 text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
+          <h2 className="text-xl font-semibold mt-7 mb-3 text-gray-900 dark:text-white font-serif border-b border-gray-200 dark:border-gray-700 pb-2">
             {children}
           </h2>
         ),
         h3: ({ children }) => (
-          <h3 className="text-lg font-semibold mt-4 mb-2 text-emerald-700 dark:text-emerald-400">
+          <h3 className="text-lg font-semibold mt-5 mb-2 text-emerald-700 dark:text-emerald-400 font-serif">
             {children}
           </h3>
         ),
 
-        // Lists
         ul: ({ children }) => (
           <ul className="list-disc list-outside ml-5 space-y-2 my-4 marker:text-emerald-500">
             {children}
           </ul>
         ),
         ol: ({ children }) => (
-          <ol className="list-decimal list-outside ml-5 space-y-2 my-4 marker:text-emerald-600">
+          <ol className="list-decimal list-outside ml-5 space-y-2 my-4 marker:text-emerald-600 dark:marker:text-emerald-400">
             {children}
           </ol>
         ),
         li: ({ children }) => (
-          <li className="text-gray-700 dark:text-gray-300 leading-relaxed pl-1">
-            {processChildren(children)}
-          </li>
+          <li className="leading-[1.7] pl-1">{processChildren(children)}</li>
         ),
 
-        // Strong and emphasis
         strong: ({ children }) => (
           <strong className="font-semibold text-gray-900 dark:text-white">
             {children}
@@ -489,7 +469,6 @@ function MarkdownContent({
           </em>
         ),
 
-        // Code
         code: ({ className, children }) => {
           const isInline = !className;
           if (isInline) {
@@ -506,14 +485,12 @@ function MarkdownContent({
           );
         },
 
-        // Blockquote
         blockquote: ({ children }) => (
-          <blockquote className="border-l-4 border-emerald-500 pl-4 py-2 my-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-r-lg italic text-gray-700 dark:text-gray-300">
+          <blockquote className="border-l-[3px] border-emerald-500 pl-4 py-2 my-5 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-r-lg italic">
             {children}
           </blockquote>
         ),
 
-        // Links
         a: ({ href, children }) => (
           <a
             href={href}
@@ -531,22 +508,78 @@ function MarkdownContent({
   );
 }
 
+// Collapsible wrapper for backend-format references
+function CollapsibleBackendReferences({
+  references,
+}: {
+  references: { text: string; tooltip: string }[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 text-sm font-display font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+      >
+        <svg
+          className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+          />
+        </svg>
+        References ({references.length})
+      </button>
+
+      <div className={`references-collapse ${isOpen ? "open" : ""}`}>
+        <div>
+          <ul className="space-y-1 mt-3">
+            {references.map((ref, index) => (
+              <BackendReferenceItem
+                key={index}
+                number={ref.tooltip || String(index + 1)}
+                text={ref.text}
+              />
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
   const isUser = message.role === "user";
 
-  // Parse content for AI messages
   const parsedContent = useMemo(() => {
     if (isUser) {
       return null;
     }
 
-    // Parse citations from the message content
     const { mainContent, references, citationMap } = parseCitations(
       message.content,
     );
 
-    // Merge backend references into citationMap (for tooltip display)
-    // Backend returns: { text: "full citation text", tooltip: "number" }
     if (message.references && message.references.length > 0) {
       message.references.forEach((ref, index) => {
         const number = ref.tooltip || String(index + 1);
@@ -564,106 +597,74 @@ export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
     return { mainContent, references, citationMap };
   }, [message.content, message.references, isUser]);
 
-  // User message bubble
+  // User message
   if (isUser) {
     return (
       <div
-        className="flex items-end gap-3 p-4 justify-end chat-bubble"
+        className="flex justify-end px-4 py-3 chat-bubble"
         style={{ animationDelay: `${delay}s` }}
       >
-        <div className="flex flex-1 flex-col gap-1 items-end">
-          <p className="text-gray-500 dark:text-gray-400 text-xs font-medium">
+        <div className="flex flex-col items-end gap-1 max-w-lg">
+          <p className="text-gray-400 dark:text-gray-500 text-xs font-medium font-display">
             You
           </p>
-          <p className="text-base font-normal leading-relaxed max-w-lg rounded-xl px-4 py-3 bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-100 shadow-sm border border-emerald-200 dark:border-emerald-800">
+          <p className="text-base font-normal font-display leading-relaxed rounded-2xl px-4 py-2.5 bg-emerald-600 text-white shadow-sm">
             {message.content}
           </p>
         </div>
-        <div
-          className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 h-10 shrink-0 ring-2 ring-emerald-200 dark:ring-emerald-800"
-          style={{
-            backgroundImage:
-              'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBRqumJAgVByoXuzEYyKYepSO48jaVL4SHaLztYntgLwSuk8dHqOgnsRiVj2h1UDGrKXBQHCuaam0hxyZ2_0dGnusWne0ZRO6jyJ6QXEQHSNvqKj8JeiEYTVrPJvyaGupKLmHvG1MK8MOSAgMUuP7rYL3BZKqmQg6Qe7uGxHf2Pr9x60H1CFBHZJKiKpeH3eh3LjpV7Lmh5_Jw7X_sGm3U_IYJrSdkrHetvNQhVxAFUHU3J2s-nHayWa1DNpOmSfqBoen20iVCjwik")',
-          }}
-        />
       </div>
     );
   }
 
-  // AI message bubble
+  // AI message — academic article style
   return (
     <div
-      className="flex items-start gap-3 p-4 chat-bubble"
+      className="px-4 py-3 chat-bubble"
       style={{ animationDelay: `${delay}s` }}
     >
-      <div
-        className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 h-10 shrink-0 shadow-md ring-2 ring-white dark:ring-gray-700"
-        style={{
-          backgroundImage:
-            'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDrkDJRueG6cbTc-pK2U118OcT-5KblcDRskAzZVfP0X_7RJDy816UrmdXAd2MRPiVEYm59VZjnO6IQh7QnRyQiUwk1zz3EkF_Xrk2_C7UKRtsC7seOPZBkhzPNyw1GltrIANbDtFRn4ae2THwRRRfPQ67oMLEV5PCIIMK8X3lNqw8PeDaEsLxgjah83QXIeTAPXy9IdgixokHl1ZbCsHQ1zrY7zyoU7Sv88-j9-q-IuKpNhIg1td9Spgax93tk7ppyxCpGLdorTAM")',
-        }}
-      />
-      <div className="flex flex-1 flex-col gap-1 items-start">
-        <p className="text-gray-500 dark:text-gray-400 text-xs font-medium">
-          GreenLaw AI
-        </p>
-
-        {/* Message Container */}
-        <div className="message-bubble bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 max-w-3xl">
-          {/* Main Content */}
-          <div className="prose-content text-gray-700 dark:text-gray-300 leading-[1.7] text-[15px]">
-            {parsedContent && (
-              <MarkdownContent
-                content={parsedContent.mainContent}
-                citationMap={parsedContent.citationMap}
-              />
-            )}
-          </div>
-
-          {/* Divider (only if has references) */}
-          {parsedContent && parsedContent.references.length > 0 && (
-            <div className="border-t border-gray-100 dark:border-gray-700 my-4"></div>
-          )}
-
-          {/* References Section */}
-          {parsedContent && (
-            <ReferencesSection references={parsedContent.references} />
-          )}
-
-          {/* Backend format: message.references array with {text, tooltip} */}
-          {/* text = full citation text, tooltip = reference number */}
-          {message.references &&
-            message.references.length > 0 &&
-            !parsedContent?.references.length && (
-              <div className="references-section bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 mt-4">
-                <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                    />
-                  </svg>
-                  References
-                </h4>
-                <ul className="space-y-2">
-                  {message.references.map((ref, index) => (
-                    <BackendReferenceItem
-                      key={index}
-                      number={ref.tooltip || String(index + 1)}
-                      text={ref.text}
-                    />
-                  ))}
-                </ul>
-              </div>
-            )}
+      <div className="max-w-3xl">
+        {/* Label */}
+        <div className="flex items-center gap-2 mb-2">
+          <svg
+            className="w-4 h-4 text-emerald-600 dark:text-emerald-400"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path
+              d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+              stroke="currentColor"
+              fill="none"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="text-xs font-semibold font-display text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            Sustain Nexus
+          </span>
         </div>
+
+        {/* Main Content — academic prose */}
+        <div className="academic-prose">
+          {parsedContent && (
+            <MarkdownContent
+              content={parsedContent.mainContent}
+              citationMap={parsedContent.citationMap}
+            />
+          )}
+        </div>
+
+        {/* References Section — collapsible */}
+        {parsedContent && (
+          <ReferencesSection references={parsedContent.references} />
+        )}
+
+        {/* Backend format references */}
+        {message.references &&
+          message.references.length > 0 &&
+          !parsedContent?.references.length && (
+            <CollapsibleBackendReferences references={message.references} />
+          )}
       </div>
     </div>
   );

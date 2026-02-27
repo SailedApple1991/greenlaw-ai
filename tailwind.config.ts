@@ -19,6 +19,7 @@ const config: Config = {
       },
       fontFamily: {
         display: ["Manrope", "sans-serif"],
+        serif: ['"Source Serif 4"', "Georgia", "serif"],
       },
       borderRadius: {
         DEFAULT: "0.5rem",
