@@ -492,35 +492,32 @@ export default function ChatPage() {
                 )}
                 {/* Loading indicator - show when waiting for first chunk or non-streaming */}
                 {isLoading && !streamingContent && (
-                  <div className="flex items-start gap-3 p-4 animate-fade-in">
-                    <div
-                      className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 h-10 shrink-0 shadow-sm"
-                      style={{
-                        backgroundImage:
-                          'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDrkDJRueG6cbTc-pK2U118OcT-5KblcDRskAzZVfP0X_7RJDy816UrmdXAd2MRPiVEYm59VZjnO6IQh7QnRyQiUwk1zz3EkF_Xrk2_C7UKRtsC7seOPZBkhzPNyw1GltrIANbDtFRn4ae2THwRRRfPQ67oMLEV5PCIIMK8X3lNqw8PeDaEsLxgjah83QXIeTAPXy9IdgixokHl1ZbCsHQ1zrY7zyoU7Sv88-j9-q-IuKpNhIg1td9Spgax93tk7ppyxCpGLdorTAM")',
-                      }}
-                    />
-                    <div className="flex flex-1 flex-col gap-1 items-start">
-                      <p className="text-[#333333] dark:text-gray-400 text-xs font-normal leading-normal">
-                        GreenLaw AI
-                      </p>
-                      <div className="px-4 py-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center gap-2">
-                          <div className="flex gap-1">
-                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" />
-                            <div
-                              className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"
-                              style={{ animationDelay: "0.1s" }}
-                            />
-                            <div
-                              className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"
-                              style={{ animationDelay: "0.2s" }}
-                            />
-                          </div>
-                          <span className="text-sm text-gray-500 dark:text-gray-400 transition-opacity duration-300">
-                            {LOADING_STATES[loadingStateIndex]}
-                          </span>
-                        </div>
+                  <div className="px-4 py-3 animate-fade-in">
+                    <div className="max-w-3xl">
+                      <div className="flex items-center gap-2 mb-3">
+                        <svg
+                          className="w-4 h-4 text-emerald-600 dark:text-emerald-400"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                        >
+                          <path
+                            d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                            stroke="currentColor"
+                            fill="none"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        <span className="text-xs font-semibold font-display text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                          Sustain Nexus
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="loading-spinner" />
+                        <span className="text-sm text-gray-500 dark:text-gray-400 font-display transition-opacity duration-300">
+                          {LOADING_STATES[loadingStateIndex]}
+                        </span>
                       </div>
                     </div>
                   </div>
