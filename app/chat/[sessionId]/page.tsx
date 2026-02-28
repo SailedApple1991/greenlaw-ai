@@ -265,6 +265,10 @@ export default function ChatPage() {
     // Save pending request in case user navigates away
     savePendingRequest(sessionId, message);
 
+    // 3-minute timeout for the entire request
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 180000);
+
     try {
       // Prepare conversation history using ref to avoid stale closure
       const conversationHistory = messagesRef.current.map((msg) => ({
@@ -288,6 +292,7 @@ export default function ChatPage() {
           user_id: userId,
           stream: true,
         }),
+        signal: abortController.signal,
       });
 
       if (!response.ok) {
@@ -429,9 +434,13 @@ export default function ChatPage() {
       if (isMountedRef.current) {
         setIsStreaming(false);
         setStreamingContent("");
-        // Show error message with the actual error detail
-        const errorDetail =
-          error instanceof Error ? error.message : "Unknown error";
+        const isTimeout =
+          error instanceof DOMException && error.name === "AbortError";
+        const errorDetail = isTimeout
+          ? "Request timed out after 3 minutes"
+          : error instanceof Error
+            ? error.message
+            : "Unknown error";
         const errorMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: "assistant",
@@ -440,6 +449,7 @@ export default function ChatPage() {
         setMessages((prev) => [...prev, errorMessage]);
       }
     } finally {
+      clearTimeout(timeoutId);
       if (isMountedRef.current) {
         setIsLoading(false);
       }
