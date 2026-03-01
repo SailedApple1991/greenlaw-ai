@@ -525,8 +525,8 @@ function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
           <Logo className="w-8 h-8 transition-transform group-hover:scale-110" />
-          <span className="text-lg font-bold tracking-tight">
-            <span className="text-[#1ba577]">Sustain</span>{" "}
+          <span className="text-lg font-bold tracking-tight font-brand">
+            <span className="text-[#1ba577]">Sustain</span>
             <span className="text-[#9dd3c0]">Nexus</span>
           </span>
         </Link>
@@ -644,16 +644,24 @@ export default function LandingPage() {
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 animate-fade-in-up-3">
             <span className="text-gray-900 dark:text-white">Navigate </span>
             <span className="bg-gradient-to-r from-[#1ba577] to-[#9dd3c0] bg-clip-text text-transparent">
-              EU Environmental
+              EU ESG Law, Policy
             </span>
             <br />
-            <span className="text-gray-900 dark:text-white">Law with AI</span>
+            <span className="text-gray-900 dark:text-white">
+              &amp; Standards with AI
+            </span>
           </h1>
+
+          {/* Subtitle */}
+          <p className="text-sm md:text-base text-emerald-700 dark:text-emerald-400 font-semibold tracking-wide uppercase mb-4 animate-fade-in-up-3">
+            ESG Regulatory Intelligence &amp; Sustainability Strategy Platform
+          </p>
 
           {/* Subheading */}
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-in-up-4">
-            Ask complex regulatory questions in plain language and get instant,
-            cited answers from authoritative EU legal sources.
+            Ask complex regulatory questions in plain language. Get instant,
+            cited answers from authoritative EU sources—turning compliance risk
+            into business opportunity.
           </p>
 
           {/* CTA Buttons */}
@@ -675,8 +683,157 @@ export default function LandingPage() {
             </a>
           </div>
 
+          {/* Integrated Sustainability Platforms */}
+          <div className="mt-16 md:mt-20 max-w-4xl mx-auto animate-fade-in-up-6">
+            <p className="text-sm font-semibold text-[#1ba577] tracking-wide uppercase mb-6 text-center">
+              Integrated Sustainability Platforms
+            </p>
+            <div className="grid sm:grid-cols-3 gap-5">
+              {/* Carbon Account & Management */}
+              <div className="group flex flex-col items-center p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                <div className="w-16 h-16 rounded-full bg-white border-2 border-gray-200 dark:border-gray-700 flex items-center justify-center mb-4 group-hover:border-emerald-400 transition-colors">
+                  <svg
+                    className="w-8 h-8 text-gray-700 dark:text-gray-300"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <text
+                      x="3"
+                      y="11"
+                      fontSize="7"
+                      fontWeight="700"
+                      fill="currentColor"
+                      stroke="none"
+                      fontFamily="sans-serif"
+                    >
+                      CO
+                    </text>
+                    <text
+                      x="14"
+                      y="14"
+                      fontSize="5"
+                      fontWeight="700"
+                      fill="currentColor"
+                      stroke="none"
+                      fontFamily="sans-serif"
+                    >
+                      2
+                    </text>
+                    <path d="M4 18 Q8 14 12 16 Q16 18 20 15" />
+                  </svg>
+                </div>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 text-center">
+                  Carbon Account &amp; Management
+                </h3>
+                <a
+                  href="#"
+                  className="mt-2 text-sm font-medium text-[#1ba577] hover:text-emerald-600 transition-colors flex items-center gap-1"
+                >
+                  Measure &amp; Reduce Carbon Emissions
+                  <span>&rarr;</span>
+                </a>
+              </div>
+
+              {/* ESG Data Management */}
+              <div className="group flex flex-col items-center p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                <div className="w-16 h-16 rounded-full bg-white border-2 border-gray-200 dark:border-gray-700 flex items-center justify-center mb-4 group-hover:border-emerald-400 transition-colors">
+                  <svg
+                    className="w-8 h-8 text-gray-700 dark:text-gray-300"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect
+                      x="4"
+                      y="14"
+                      width="3"
+                      height="6"
+                      rx="0.5"
+                      fill="currentColor"
+                      opacity="0.3"
+                    />
+                    <rect
+                      x="9"
+                      y="10"
+                      width="3"
+                      height="10"
+                      rx="0.5"
+                      fill="currentColor"
+                      opacity="0.5"
+                    />
+                    <rect
+                      x="14"
+                      y="6"
+                      width="3"
+                      height="14"
+                      rx="0.5"
+                      fill="currentColor"
+                      opacity="0.7"
+                    />
+                    <rect
+                      x="19"
+                      y="3"
+                      width="3"
+                      height="17"
+                      rx="0.5"
+                      fill="currentColor"
+                      opacity="0.9"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 text-center">
+                  ESG Data Management
+                </h3>
+                <a
+                  href="#"
+                  className="mt-2 text-sm font-medium text-[#1ba577] hover:text-emerald-600 transition-colors flex items-center gap-1"
+                >
+                  Streamline ESG Reporting
+                  <span>&rarr;</span>
+                </a>
+              </div>
+
+              {/* Product Lifecycle Assessment */}
+              <div className="group flex flex-col items-center p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                <div className="w-16 h-16 rounded-full bg-white border-2 border-gray-200 dark:border-gray-700 flex items-center justify-center mb-4 group-hover:border-emerald-400 transition-colors">
+                  <svg
+                    className="w-8 h-8 text-gray-700 dark:text-gray-300"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 2a10 10 0 0 1 0 20" />
+                    <path d="M12 22a10 10 0 0 1 0-20" strokeDasharray="4 2" />
+                    <path d="M16 8l2-2m0 0l-1-1m1 1l1-1" />
+                    <path d="M8 16l-2 2m0 0l1 1m-1-1l-1 1" />
+                  </svg>
+                </div>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 text-center">
+                  Product Lifecycle Assessment
+                </h3>
+                <a
+                  href="#"
+                  className="mt-2 text-sm font-medium text-[#1ba577] hover:text-emerald-600 transition-colors flex items-center gap-1"
+                >
+                  Evaluate Environmental Impact
+                  <span>&rarr;</span>
+                </a>
+              </div>
+            </div>
+          </div>
+
           {/* Hero mock */}
-          <div className="mt-16 md:mt-20 max-w-3xl mx-auto animate-fade-in-up-6">
+          <div className="mt-16 md:mt-20 max-w-3xl mx-auto">
             <div className="relative rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-2xl shadow-gray-200/50 dark:shadow-black/30 overflow-hidden">
               {/* Title bar */}
               <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
@@ -685,8 +842,8 @@ export default function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-yellow-400" />
                   <div className="w-3 h-3 rounded-full bg-green-400" />
                 </div>
-                <span className="ml-2 text-xs text-gray-400 font-medium">
-                  Sustain Nexus
+                <span className="ml-2 text-xs text-gray-400 font-medium font-brand">
+                  SustainNexus
                 </span>
               </div>
               {/* Chat preview */}
@@ -909,14 +1066,14 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-2.5">
               <Logo className="w-7 h-7" />
-              <span className="text-sm font-bold">
-                <span className="text-[#1ba577]">Sustain</span>{" "}
+              <span className="text-sm font-bold font-brand">
+                <span className="text-[#1ba577]">Sustain</span>
                 <span className="text-[#9dd3c0]">Nexus</span>
               </span>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-500">
-              &copy; {new Date().getFullYear()} Sustain Nexus. Environmental Law
-              & Policy Assistant.
+              &copy; {new Date().getFullYear()} SustainNexus. ESG Regulatory
+              Intelligence &amp; Sustainability Strategy Platform.
             </p>
           </div>
         </div>

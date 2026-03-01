@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sustain Nexus | Environmental Law & Policy Assistant",
+  title: "SustainNexus | ESG Regulatory Intelligence",
   description:
-    "AI-powered environmental law assistant for EU regulations. Get instant, cited answers on EU ETS, CSRD, CBAM, and more.",
+    "AI-powered ESG regulatory intelligence and sustainability strategy platform. Get instant, cited answers on EU ETS, CSRD, CBAM, and more.",
 };
 
 export default function RootLayout({
@@ -26,7 +26,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Lateef:wght@400;700&family=Manrope:wght@400;500;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,500&display=swap"
           rel="stylesheet"
         />
       </head>

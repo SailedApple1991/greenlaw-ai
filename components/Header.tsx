@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Menu } from "lucide-react";
 
 interface HeaderProps {
@@ -24,19 +25,21 @@ export default function Header({ onClearChat, onMenuClick, showMenuButton = true
                 </button>
               )}
 
-              <svg className="w-10 h-10 lg:w-12 lg:h-12" viewBox="0 0 84.785 73.288" xmlns="http://www.w3.org/2000/svg">
-                <polygon points="48.622 0 48.622 72.327 84.785 36.164 48.622 0" fill="#9dd3c0"/>
-                <polygon points="60.741 37.124 24.577 .96 24.577 25.538 36.164 37.124 24.577 48.71 24.577 73.288 60.741 37.124" fill="#1ba577"/>
-                <polygon points="0 .96 0 12.679 24.445 37.124 0 61.569 0 73.288 24.577 48.71 24.577 25.538 0 .96" fill="#1ba577"/>
-              </svg>
-              <div className="flex flex-col">
-                <p className="text-xl lg:text-2xl font-bold leading-tight tracking-tight font-display">
-                  <span className="text-[#1ba577]">Sustain</span> <span className="text-[#9dd3c0]">Nexus</span>
-                </p>
-                <p className="text-[#333333] dark:text-gray-300 text-xs lg:text-sm font-normal leading-normal hidden sm:block">
-                  Environmental law &amp; policy assistant
-                </p>
-              </div>
+              <Link href="/" className="flex items-center gap-3 group">
+                <svg className="w-10 h-10 lg:w-12 lg:h-12 transition-transform group-hover:scale-105" viewBox="0 0 84.785 73.288" xmlns="http://www.w3.org/2000/svg">
+                  <polygon points="48.622 0 48.622 72.327 84.785 36.164 48.622 0" fill="#9dd3c0"/>
+                  <polygon points="60.741 37.124 24.577 .96 24.577 25.538 36.164 37.124 24.577 48.71 24.577 73.288 60.741 37.124" fill="#1ba577"/>
+                  <polygon points="0 .96 0 12.679 24.445 37.124 0 61.569 0 73.288 24.577 48.71 24.577 25.538 0 .96" fill="#1ba577"/>
+                </svg>
+                <div className="flex flex-col">
+                  <p className="text-xl lg:text-2xl font-bold leading-tight tracking-tight font-brand">
+                    <span className="text-[#1ba577]">Sustain</span><span className="text-[#9dd3c0]">Nexus</span>
+                  </p>
+                  <p className="text-[#333333] dark:text-gray-300 text-xs lg:text-sm font-normal leading-normal hidden sm:block font-display">
+                    ESG Regulatory Intelligence
+                  </p>
+                </div>
+              </Link>
             </div>
             {onClearChat && (
               <button

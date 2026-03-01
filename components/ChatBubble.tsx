@@ -639,8 +639,9 @@ export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
               strokeLinejoin="round"
             />
           </svg>
-          <span className="text-xs font-semibold font-display text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-            Sustain Nexus
+          <span className="text-sm font-semibold font-brand text-gray-500 dark:text-gray-400 tracking-wide">
+            <span className="text-[#1ba577]">Sustain</span>
+            <span className="text-[#9dd3c0]">Nexus</span>
           </span>
         </div>
 
