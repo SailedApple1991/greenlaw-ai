@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import MessageInput from "@/components/MessageInput";
 import Sidebar from "@/components/Sidebar";
 import { Message } from "@/lib/types";
+import { useTypewriter } from "@/hooks/useTypewriter";
 import {
   saveChatHistory,
   getUserId,
@@ -217,8 +218,10 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Typewriter hook for smooth streaming display
+  const typewriter = useTypewriter();
+
   // State for streaming message
-  const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
 
   // Dynamic loading status (like Claude CLI)
@@ -231,12 +234,12 @@ export default function ChatPage() {
   const [loadingStateIndex, setLoadingStateIndex] = useState(0);
 
   useEffect(() => {
-    if (!isLoading || streamingContent) return;
+    if (!isLoading || typewriter.displayedText) return;
     const interval = setInterval(() => {
       setLoadingStateIndex((prev) => (prev + 1) % LOADING_STATES.length);
     }, 3000);
     return () => clearInterval(interval);
-  }, [isLoading, streamingContent, LOADING_STATES.length]);
+  }, [isLoading, typewriter.displayedText, LOADING_STATES.length]);
 
   // Reset loading state index when a new request starts
   useEffect(() => {
@@ -245,7 +248,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, streamingContent]);
+  }, [messages, typewriter.displayedText]);
 
   const handleSend = async (message: string) => {
     if (!message.trim()) return;
@@ -259,7 +262,7 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
-    setStreamingContent("");
+    typewriter.reset();
     setIsStreaming(true);
 
     // Save pending request in case user navigates away
@@ -310,59 +313,58 @@ export default function ChatPage() {
         let sseBuffer = "";
 
         if (reader) {
-          // Helper to save completed content to messages
-          const saveContent = (content: string) => {
-            if (isMountedRef.current && content) {
+          // Finalize: let typewriter animation finish, then swap in final message
+          const finalizeContent = (content: string) => {
+            clearPendingRequest();
+            if (!isMountedRef.current || !content) return;
+
+            const commitMessage = () => {
+              if (!isMountedRef.current) return;
               const aiMessage: Message = {
                 id: `ai-${Date.now()}`,
                 role: "assistant",
                 content,
               };
               setMessages((prev) => [...prev, aiMessage]);
-              setStreamingContent("");
               setIsStreaming(false);
-            }
-            clearPendingRequest();
+            };
+
+            // Let typewriter drain remaining text, then commit
+            typewriter.finish(commitMessage);
           };
 
           // Helper to process a single parsed SSE data object
           const processSSEData = (data: Record<string, unknown>) => {
             if (data.error) {
-              // Backend error — but we may already have partial content
-              // If we have content from the same stream, use it
-              // The error + done often come together from backend
               console.error("Backend stream error:", data.error);
               if (data.done && fullContent) {
                 streamCompleted = true;
-                saveContent(fullContent);
+                finalizeContent(fullContent);
                 return;
               }
-              // If the done event has content attached, use that
               if (data.done && data.content) {
                 streamCompleted = true;
-                saveContent(data.content as string);
+                finalizeContent(data.content as string);
                 return;
               }
-              // No content at all — propagate error
               if (!fullContent) {
                 throw new Error(data.error as string);
               }
-              // Have partial content — save what we have
               streamCompleted = true;
-              saveContent(fullContent);
+              finalizeContent(fullContent);
               return;
             }
 
             if (data.chunk) {
               fullContent += data.chunk;
               if (isMountedRef.current) {
-                setStreamingContent(fullContent);
+                typewriter.append(data.chunk as string);
               }
             }
 
             if (data.done) {
               streamCompleted = true;
-              saveContent((data.content as string) || fullContent);
+              finalizeContent((data.content as string) || fullContent);
             }
           };
 
@@ -411,7 +413,7 @@ export default function ChatPage() {
           } finally {
             // If stream ended without "done" signal but we have content, save it
             if (!streamCompleted && fullContent && isMountedRef.current) {
-              saveContent(fullContent);
+              finalizeContent(fullContent);
             }
           }
         }
@@ -433,7 +435,7 @@ export default function ChatPage() {
       console.error("Error sending message:", error);
       if (isMountedRef.current) {
         setIsStreaming(false);
-        setStreamingContent("");
+        typewriter.flush();
         const isTimeout =
           error instanceof DOMException && error.name === "AbortError";
         const errorDetail = isTimeout
@@ -489,19 +491,19 @@ export default function ChatPage() {
                   />
                 ))}
                 {/* Streaming response - show as it comes in */}
-                {isStreaming && streamingContent && (
+                {isStreaming && typewriter.displayedText && (
                   <ChatBubble
                     key="streaming"
                     message={{
                       id: "streaming",
                       role: "assistant",
-                      content: streamingContent,
+                      content: typewriter.displayedText,
                     }}
                     delay={0}
                   />
                 )}
                 {/* Loading indicator - show when waiting for first chunk or non-streaming */}
-                {isLoading && !streamingContent && (
+                {isLoading && !typewriter.displayedText && (
                   <div className="px-4 py-3 animate-fade-in">
                     <div className="max-w-3xl">
                       <div className="flex items-center gap-2 mb-3">
@@ -519,8 +521,9 @@ export default function ChatPage() {
                             strokeLinejoin="round"
                           />
                         </svg>
-                        <span className="text-xs font-semibold font-display text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                          Sustain Nexus
+                        <span className="text-sm font-semibold font-brand text-gray-500 dark:text-gray-400 tracking-wide">
+                          <span className="text-[#1ba577]">Sustain</span>
+                          <span className="text-[#9dd3c0]">Nexus</span>
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
