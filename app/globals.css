@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* SustainNexus brand font — local TTF */
+@font-face {
+  font-family: "Lateef";
+  src: url("/fonts/Lateef-4ePB.ttf") format("truetype");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
 .chat-bubble {
   animation: pop-in 0.3s ease-out forwards;
 }
