@@ -1,8 +1,10 @@
 import { useState, useRef, useCallback } from "react";
 
+const TICK_INTERVAL_MS = 30; // ~33fps, feels natural for typing
+
 /**
- * Typewriter hook that meters out received text at a controlled rate,
- * producing a smooth word-by-word rendering effect for streamed content.
+ * Typewriter hook that meters out received text character-by-character,
+ * producing a smooth typing effect for streamed content.
  *
  * Key design: `finish()` does NOT instantly flush text. It marks the stream
  * as done and lets the animation run to completion, then calls `onDone`.
@@ -13,74 +15,63 @@ export function useTypewriter() {
   const [displayedText, setDisplayedText] = useState("");
   const targetTextRef = useRef("");
   const displayIndexRef = useRef(0);
-  const rafIdRef = useRef<number | null>(null);
+  const timerIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onDoneRef = useRef<(() => void) | null>(null);
   const isFinishedRef = useRef(false);
+
+  const fireDoneCallback = useCallback(() => {
+    if (isFinishedRef.current && onDoneRef.current) {
+      const cb = onDoneRef.current;
+      onDoneRef.current = null;
+      cb();
+    }
+  }, []);
+
+  const stopTimer = useCallback(() => {
+    if (timerIdRef.current !== null) {
+      clearInterval(timerIdRef.current);
+      timerIdRef.current = null;
+    }
+  }, []);
 
   const tick = useCallback(() => {
     const target = targetTextRef.current;
     const currentIndex = displayIndexRef.current;
 
     if (currentIndex >= target.length) {
-      rafIdRef.current = null;
-      // Animation caught up to target — if stream is finished, fire callback
-      if (isFinishedRef.current && onDoneRef.current) {
-        const cb = onDoneRef.current;
-        onDoneRef.current = null;
-        cb();
-      }
+      stopTimer();
+      fireDoneCallback();
       return;
     }
 
     const remaining = target.length - currentIndex;
 
-    // Adaptive speed: larger buffer → faster advancement
-    // At 60fps, 12 chars/frame ≈ 720 chars/sec for large bursts
-    const charsPerFrame =
-      remaining > 500 ? 24 : remaining > 200 ? 12 : remaining > 50 ? 6 : 3;
+    // Adaptive speed: character-by-character with catch-up for large buffers
+    // At 30ms interval: 1 char = ~33 chars/sec, 2 chars = ~66 chars/sec
+    const charsPerTick =
+      remaining > 2000 ? 8 : remaining > 500 ? 4 : remaining > 100 ? 2 : 1;
 
-    let nextIndex = Math.min(currentIndex + charsPerFrame, target.length);
+    const nextIndex = Math.min(currentIndex + charsPerTick, target.length);
 
-    // Advance to next word boundary (space, newline) for smooth reading
-    if (nextIndex < target.length) {
-      const searchEnd = Math.min(nextIndex + 20, target.length);
-      for (let i = nextIndex; i < searchEnd; i++) {
-        const char = target[i];
-        if (char === " " || char === "\n") {
-          nextIndex = i + 1;
-          break;
-        }
-      }
-    }
+    // No word/line boundary snapping — true character-by-character output
 
     displayIndexRef.current = nextIndex;
     setDisplayedText(target.slice(0, nextIndex));
 
-    if (nextIndex < target.length) {
-      rafIdRef.current = requestAnimationFrame(tick);
-    } else {
-      rafIdRef.current = null;
-      // Reached the end — if stream is finished, fire callback
-      if (isFinishedRef.current && onDoneRef.current) {
-        const cb = onDoneRef.current;
-        onDoneRef.current = null;
-        cb();
-      }
+    if (nextIndex >= target.length) {
+      stopTimer();
+      fireDoneCallback();
     }
-  }, []);
+  }, [stopTimer, fireDoneCallback]);
 
   const startAnimation = useCallback(() => {
-    if (rafIdRef.current === null && !isFinishedRef.current) {
-      rafIdRef.current = requestAnimationFrame(tick);
+    if (timerIdRef.current !== null) return; // already running
+    if (displayIndexRef.current >= targetTextRef.current.length) {
+      fireDoneCallback();
+      return;
     }
-    // If finished but animation stopped (e.g. target grew after finish),
-    // restart to drain remaining text
-    if (rafIdRef.current === null && isFinishedRef.current) {
-      if (displayIndexRef.current < targetTextRef.current.length) {
-        rafIdRef.current = requestAnimationFrame(tick);
-      }
-    }
-  }, [tick]);
+    timerIdRef.current = setInterval(tick, TICK_INTERVAL_MS);
+  }, [tick, fireDoneCallback]);
 
   /** Append a chunk of text to the typewriter queue */
   const append = useCallback(
@@ -114,10 +105,7 @@ export function useTypewriter() {
 
   /** Force-flush all text instantly (used for errors / unmount) */
   const flush = useCallback(() => {
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
-    }
+    stopTimer();
     isFinishedRef.current = true;
     const finalText = targetTextRef.current;
     displayIndexRef.current = finalText.length;
@@ -127,20 +115,17 @@ export function useTypewriter() {
       onDoneRef.current = null;
       cb();
     }
-  }, []);
+  }, [stopTimer]);
 
   /** Reset all state for a new message */
   const reset = useCallback(() => {
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
-    }
+    stopTimer();
     targetTextRef.current = "";
     displayIndexRef.current = 0;
     isFinishedRef.current = false;
     onDoneRef.current = null;
     setDisplayedText("");
-  }, []);
+  }, [stopTimer]);
 
   return { displayedText, append, finish, flush, reset };
 }

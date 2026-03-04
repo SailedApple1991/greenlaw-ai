@@ -214,8 +214,10 @@ export default function ChatPage() {
     }
   }, [messages, hasLoadedHistory]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (instant = false) => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: instant ? "instant" : "smooth",
+    });
   };
 
   // Typewriter hook for smooth streaming display
@@ -246,9 +248,20 @@ export default function ChatPage() {
     if (isLoading) setLoadingStateIndex(0);
   }, [isLoading]);
 
+  // Debounced scroll during streaming to avoid jank
+  const lastScrollRef = useRef(0);
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, typewriter.displayedText]);
+    if (isStreaming) {
+      // During streaming: throttle scroll to every 200ms, use instant
+      const now = Date.now();
+      if (now - lastScrollRef.current > 200) {
+        lastScrollRef.current = now;
+        scrollToBottom(true);
+      }
+    } else {
+      scrollToBottom();
+    }
+  }, [messages, typewriter.displayedText, isStreaming]);
 
   const handleSend = async (message: string) => {
     if (!message.trim()) return;
