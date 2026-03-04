@@ -443,7 +443,7 @@ function Logo({ className = "w-10 h-10" }: { className?: string }) {
 /* ─── Animated Hero Logo (pieces slide in left→right) ─── */
 function AnimatedHeroLogo() {
   return (
-    <div className="relative w-32 h-28 md:w-40 md:h-36 mx-auto">
+    <div className="relative w-24 h-20 md:w-40 md:h-36 mx-auto">
       {/* Glow backdrop */}
       <div className="absolute inset-0 animate-hero-glow">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 md:w-56 md:h-56 bg-emerald-400/20 dark:bg-emerald-500/15 rounded-full blur-3xl" />
@@ -525,7 +525,7 @@ function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
           <Logo className="w-8 h-8 transition-transform group-hover:scale-110" />
-          <span className="text-lg font-bold tracking-tight font-brand">
+          <span className="text-[36px] font-bold tracking-tight font-brand">
             <span className="text-[#1ba577]">Sustain</span>
             <span className="text-[#9dd3c0]">Nexus</span>
           </span>
@@ -613,7 +613,7 @@ export default function LandingPage() {
       <Navbar />
 
       {/* ── Hero ── */}
-      <div className="relative pt-32 pb-20 md:pt-44 md:pb-32 overflow-hidden">
+      <div className="relative pt-24 pb-16 md:pt-44 md:pb-32 overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-gradient-radial from-emerald-100/60 via-transparent to-transparent dark:from-emerald-900/20 rounded-full blur-3xl" />
@@ -636,7 +636,7 @@ export default function LandingPage() {
           </div>
 
           {/* Animated Hero Logo - pieces slide in left to right */}
-          <div className="mb-8">
+          <div className="mb-5 md:mb-8">
             <AnimatedHeroLogo />
           </div>
 
@@ -653,19 +653,12 @@ export default function LandingPage() {
           </h1>
 
           {/* Subtitle */}
-          <p className="text-sm md:text-base text-emerald-700 dark:text-emerald-400 font-semibold tracking-wide uppercase mb-4 animate-fade-in-up-3">
+          <p className="text-sm md:text-base text-emerald-700 dark:text-emerald-400 font-semibold tracking-wide uppercase mb-6 md:mb-8 animate-fade-in-up-3">
             ESG Regulatory Intelligence &amp; Sustainability Strategy Platform
           </p>
 
-          {/* Subheading */}
-          <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-in-up-4">
-            Ask complex regulatory questions in plain language. Get instant,
-            cited answers from authoritative EU sources—turning compliance risk
-            into business opportunity.
-          </p>
-
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up-5">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up-4">
             <Link
               href="/chat"
               className="group px-8 py-3.5 rounded-full text-base font-semibold text-white bg-[#1ba577] hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5"
@@ -726,12 +719,12 @@ export default function LandingPage() {
                     <path d="M4 18 Q8 14 12 16 Q16 18 20 15" />
                   </svg>
                 </div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 text-center">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 text-center flex-1">
                   Carbon Account &amp; Management
                 </h3>
                 <a
                   href="#"
-                  className="mt-2 text-sm font-medium text-[#1ba577] hover:text-emerald-600 transition-colors flex items-center gap-1"
+                  className="mt-auto text-sm font-medium text-[#1ba577] hover:text-emerald-600 transition-colors flex items-center gap-1"
                 >
                   Measure &amp; Reduce Carbon Emissions
                   <span>&rarr;</span>
@@ -788,12 +781,12 @@ export default function LandingPage() {
                     />
                   </svg>
                 </div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 text-center">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 text-center flex-1">
                   ESG Data Management
                 </h3>
                 <a
                   href="#"
-                  className="mt-2 text-sm font-medium text-[#1ba577] hover:text-emerald-600 transition-colors flex items-center gap-1"
+                  className="mt-auto text-sm font-medium text-[#1ba577] hover:text-emerald-600 transition-colors flex items-center gap-1"
                 >
                   Streamline ESG Reporting
                   <span>&rarr;</span>
@@ -818,12 +811,12 @@ export default function LandingPage() {
                     <path d="M8 16l-2 2m0 0l1 1m-1-1l-1 1" />
                   </svg>
                 </div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 text-center">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 text-center flex-1">
                   Product Lifecycle Assessment
                 </h3>
                 <a
                   href="#"
-                  className="mt-2 text-sm font-medium text-[#1ba577] hover:text-emerald-600 transition-colors flex items-center gap-1"
+                  className="mt-auto text-sm font-medium text-[#1ba577] hover:text-emerald-600 transition-colors flex items-center gap-1"
                 >
                   Evaluate Environmental Impact
                   <span>&rarr;</span>
