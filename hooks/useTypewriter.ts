@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 
-const TICK_INTERVAL_MS = 50; // 20fps, relaxed typing pace
+const TICK_INTERVAL_MS = 70; // ~14fps, slow natural typing pace
 
 /**
  * Typewriter hook that meters out received text character-by-character,
