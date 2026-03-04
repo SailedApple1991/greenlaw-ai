@@ -147,7 +147,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
-    stream: Optional[bool] = False
+    stream: Optional[bool] = True
     reference: Optional[bool] = True  # Get references from RAGFlow
     conversation_history: Optional[List[ChatMessage]] = []  # Optional: conversation history for context
     session_id: Optional[str] = None  # Optional: session identifier for multi-user support
@@ -430,12 +430,16 @@ async def chat_stream(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat")
 async def chat(request: ChatRequest):
     """
-    Chat endpoint that connects to RAGFlow API using official SDK (non-streaming)
-    Uses async functions to prevent blocking the event loop.
+    Chat endpoint that connects to RAGFlow API.
+    When stream=True, delegates to the streaming endpoint.
+    Otherwise returns a full JSON response.
     """
+    # If client requests streaming, delegate to the streaming handler
+    if request.stream:
+        return await chat_stream(request)
     request_start = time.time()
     user_id = request.user_id or "anonymous"
 
