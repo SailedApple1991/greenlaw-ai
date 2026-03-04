@@ -320,8 +320,16 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
                 try:
                     chunk_data = json.loads(json_str)
                     # RAGFlow format: {"code": 0, "data": {"answer": "...", ...}}
+                    # Final chunk has {"code": 0, "data": true} — handle it
                     if chunk_data.get("code") == 0:
                         data = chunk_data.get("data", {})
+                        if data is True:
+                            # RAGFlow end-of-stream signal
+                            done_sent = True
+                            yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
+                            break
+                        if not isinstance(data, dict):
+                            continue
                         answer = data.get("answer", "")
                         if answer:
                             # Send incremental content
@@ -331,7 +339,14 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
                                 yield f"data: {json.dumps({'chunk': new_content, 'done': False})}\n\n"
                     elif "data" in chunk_data:
                         # Alternative format: direct data
-                        answer = chunk_data["data"].get("answer", "")
+                        alt_data = chunk_data["data"]
+                        if alt_data is True:
+                            done_sent = True
+                            yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
+                            break
+                        if not isinstance(alt_data, dict):
+                            continue
+                        answer = alt_data.get("answer", "")
                         if answer:
                             new_content = answer[len(full_content):]
                             if new_content:
@@ -346,6 +361,12 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
                     chunk_data = json.loads(line_str)
                     if chunk_data.get("code") == 0:
                         data = chunk_data.get("data", {})
+                        if data is True:
+                            done_sent = True
+                            yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
+                            break
+                        if not isinstance(data, dict):
+                            continue
                         answer = data.get("answer", "")
                         if answer:
                             new_content = answer[len(full_content):]
