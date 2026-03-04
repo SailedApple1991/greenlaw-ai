@@ -295,6 +295,47 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
         last_chunk_time = time.time()
         done_sent = False
 
+        def extract_answer(chunk_data: dict) -> str | None:
+            """Extract answer text from a RAGFlow SSE chunk, handling end-of-stream."""
+            nonlocal done_sent, full_content
+            if chunk_data.get("code") == 0:
+                data = chunk_data.get("data", {})
+            elif "data" in chunk_data:
+                data = chunk_data["data"]
+            else:
+                return None
+
+            # End-of-stream signal: {"data": true}
+            if data is True:
+                done_sent = True
+                return None
+            if not isinstance(data, dict):
+                return None
+            return data.get("answer", "")
+
+        def extract_new_content(answer: str) -> str:
+            """
+            Auto-detect cumulative vs delta streaming format.
+            - Cumulative: answer grows each chunk ("He" → "Hel" → "Hell" → "Hello")
+            - Delta: answer is each new token ("He" → "l" → "l" → "o")
+            """
+            nonlocal full_content
+            if not answer:
+                return ""
+
+            if len(answer) > len(full_content) and answer.startswith(full_content):
+                # Cumulative format: answer contains all previous text + new
+                new_content = answer[len(full_content):]
+                full_content = answer
+                return new_content
+            elif answer == full_content:
+                # Repeated content, skip
+                return ""
+            else:
+                # Delta format: answer is just the new token
+                full_content += answer
+                return answer
+
         for line in response.iter_lines(chunk_size=256):
             if not line:
                 continue
@@ -312,46 +353,21 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
             if line_str.startswith('data:'):
                 json_str = line_str[5:].strip()
                 if json_str == '[DONE]':
-                    # Stream finished
                     done_sent = True
                     yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
                     break
 
                 try:
                     chunk_data = json.loads(json_str)
-                    # RAGFlow format: {"code": 0, "data": {"answer": "...", ...}}
-                    # Final chunk has {"code": 0, "data": true} — handle it
-                    if chunk_data.get("code") == 0:
-                        data = chunk_data.get("data", {})
-                        if data is True:
-                            # RAGFlow end-of-stream signal
-                            done_sent = True
-                            yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
-                            break
-                        if not isinstance(data, dict):
-                            continue
-                        answer = data.get("answer", "")
-                        if answer:
-                            # Send incremental content
-                            new_content = answer[len(full_content):]
-                            if new_content:
-                                full_content = answer
-                                yield f"data: {json.dumps({'chunk': new_content, 'done': False})}\n\n"
-                    elif "data" in chunk_data:
-                        # Alternative format: direct data
-                        alt_data = chunk_data["data"]
-                        if alt_data is True:
-                            done_sent = True
-                            yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
-                            break
-                        if not isinstance(alt_data, dict):
-                            continue
-                        answer = alt_data.get("answer", "")
-                        if answer:
-                            new_content = answer[len(full_content):]
-                            if new_content:
-                                full_content = answer
-                                yield f"data: {json.dumps({'chunk': new_content, 'done': False})}\n\n"
+                    answer = extract_answer(chunk_data)
+                    if done_sent:
+                        yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
+                        break
+                    if answer is None:
+                        continue
+                    new_content = extract_new_content(answer)
+                    if new_content:
+                        yield f"data: {json.dumps({'chunk': new_content, 'done': False})}\n\n"
                 except json.JSONDecodeError:
                     logger.warning(f"Failed to parse JSON: {json_str[:100]}...")
                     continue
@@ -359,20 +375,15 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
                 # Try to parse as raw JSON (some RAGFlow versions)
                 try:
                     chunk_data = json.loads(line_str)
-                    if chunk_data.get("code") == 0:
-                        data = chunk_data.get("data", {})
-                        if data is True:
-                            done_sent = True
-                            yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
-                            break
-                        if not isinstance(data, dict):
-                            continue
-                        answer = data.get("answer", "")
-                        if answer:
-                            new_content = answer[len(full_content):]
-                            if new_content:
-                                full_content = answer
-                                yield f"data: {json.dumps({'chunk': new_content, 'done': False})}\n\n"
+                    answer = extract_answer(chunk_data)
+                    if done_sent:
+                        yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
+                        break
+                    if answer is None:
+                        continue
+                    new_content = extract_new_content(answer)
+                    if new_content:
+                        yield f"data: {json.dumps({'chunk': new_content, 'done': False})}\n\n"
                 except json.JSONDecodeError:
                     continue
 
