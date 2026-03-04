@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 
-const TICK_INTERVAL_MS = 30; // ~33fps, feels natural for typing
+const TICK_INTERVAL_MS = 50; // 20fps, relaxed typing pace
 
 /**
  * Typewriter hook that meters out received text character-by-character,
@@ -47,9 +47,9 @@ export function useTypewriter() {
     const remaining = target.length - currentIndex;
 
     // Adaptive speed: character-by-character with catch-up for large buffers
-    // At 30ms interval: 1 char = ~33 chars/sec, 2 chars = ~66 chars/sec
+    // At 50ms interval: 1 char = 20 chars/sec ≈ comfortable reading pace
     const charsPerTick =
-      remaining > 2000 ? 8 : remaining > 500 ? 4 : remaining > 100 ? 2 : 1;
+      remaining > 2000 ? 6 : remaining > 800 ? 3 : remaining > 200 ? 2 : 1;
 
     const nextIndex = Math.min(currentIndex + charsPerTick, target.length);
 
