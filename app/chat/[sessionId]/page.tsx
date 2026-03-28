@@ -18,6 +18,15 @@ import {
   deleteSession,
   ChatSession,
 } from "@/lib/chatStorage";
+import InvitationModal from "@/components/InvitationModal";
+import {
+  hasReachedLimit,
+  incrementQuestionCount,
+  isUnlocked,
+  setUnlocked,
+  getRemainingQuestions,
+  QUESTION_LIMIT_VALUE,
+} from "@/lib/questionLimit";
 
 // Storage key for pending requests
 const PENDING_REQUEST_KEY = "greenlaw_pending_request";
@@ -98,9 +107,15 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showInvitationModal, setShowInvitationModal] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+
+  useEffect(() => {
+    setLimitReached(hasReachedLimit());
+  }, []);
 
   // Track if component is mounted for safe state updates
   const isMountedRef = useRef(true);
@@ -266,6 +281,13 @@ export default function ChatPage() {
   const handleSend = async (message: string) => {
     if (!message.trim()) return;
 
+    // Check question limit
+    if (hasReachedLimit()) {
+      setLimitReached(true);
+      setShowInvitationModal(true);
+      return;
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -273,6 +295,11 @@ export default function ChatPage() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    // Track question usage
+    incrementQuestionCount();
+    if (hasReachedLimit()) {
+      setLimitReached(true);
+    }
     setInput("");
     setIsLoading(true);
     typewriter.reset();
@@ -471,6 +498,12 @@ export default function ChatPage() {
     }
   };
 
+  const handleInvitationSuccess = () => {
+    setUnlocked();
+    setShowInvitationModal(false);
+    setLimitReached(false);
+  };
+
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar */}
@@ -555,17 +588,32 @@ export default function ChatPage() {
         </main>
 
         {/* Input fixed at bottom */}
+        {!isUnlocked() && getRemainingQuestions() <= 5 && getRemainingQuestions() > 0 && (
+          <div className="text-center py-1">
+            <span className="text-xs text-stone-400 dark:text-gray-600">
+              {getRemainingQuestions()} free question{getRemainingQuestions() !== 1 ? "s" : ""} remaining
+            </span>
+          </div>
+        )}
         <div className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4">
           <div className="mx-auto max-w-3xl">
             <MessageInput
               value={input}
               onChange={setInput}
               onSend={handleSend}
-              disabled={isLoading}
+              disabled={isLoading || limitReached}
             />
           </div>
         </div>
       </div>
+      {/* Invitation modal */}
+      {showInvitationModal && (
+        <InvitationModal
+          onSuccess={handleInvitationSuccess}
+          questionsUsed={QUESTION_LIMIT_VALUE}
+          questionLimit={QUESTION_LIMIT_VALUE}
+        />
+      )}
     </div>
   );
 }
