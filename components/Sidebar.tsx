@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { Plus, X, BookOpen, MessageSquare, Trash2 } from "lucide-react";
 import { ChatSession, categorizeSessionsByTime } from "@/lib/chatStorage";
 
@@ -128,7 +129,7 @@ export default function Sidebar({
       >
         {/* Header with Close button (mobile only) */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <svg
               className="w-8 h-8"
               viewBox="0 0 84.785 73.288"
@@ -151,7 +152,7 @@ export default function Sidebar({
               <span className="text-[#1ba577]">Sustain</span>
               <span className="text-[#9dd3c0]">Nexus</span>
             </span>
-          </div>
+          </Link>
           {/* Close button - mobile only */}
           <button
             onClick={onClose}

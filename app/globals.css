@@ -227,134 +227,163 @@
 .animate-fade-in-up-5 { animation: fade-in 0.6s ease-out 1.8s both; }
 .animate-fade-in-up-6 { animation: fade-in 0.6s ease-out 1.95s both; }
 
-/* ── Hero Logo: Left-to-Right Piece Assembly ── */
+/* ── Hero Logo: Directional Piece Assembly ── */
 
-/* Piece 1 (left chevron) — slides from far left, fades in first */
+/* Piece 1 (left chevron) — sweeps in from bottom-left, matching its arrow direction */
 @keyframes logo-piece-1 {
   0% {
     opacity: 0;
-    transform: translateX(-60px) scale(0.7);
-    filter: blur(6px);
+    transform: translate(-40px, 30px) scale(0.6) rotate(-8deg);
+    filter: blur(8px);
   }
-  50% {
-    opacity: 0.6;
-    filter: blur(2px);
+  60% {
+    opacity: 0.8;
+    transform: translate(2px, -1px) scale(1.01) rotate(0.5deg);
+    filter: blur(1px);
   }
-  80% {
-    transform: translateX(3px) scale(1.02);
+  85% {
+    transform: translate(-1px, 0) scale(1) rotate(0deg);
   }
   100% {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translate(0, 0) scale(1) rotate(0deg);
     filter: blur(0);
   }
 }
 
-/* Piece 2 (center chevron) — slides in slightly later */
+/* Piece 2 (center chevron) — drops in from above, the anchor piece */
 @keyframes logo-piece-2 {
   0% {
     opacity: 0;
-    transform: translateX(-45px) scale(0.7);
-    filter: blur(6px);
+    transform: translateY(-50px) scale(0.65);
+    filter: blur(8px);
   }
-  50% {
-    opacity: 0.6;
-    filter: blur(2px);
+  55% {
+    opacity: 0.85;
+    transform: translateY(2px) scale(1.02);
+    filter: blur(1px);
   }
   80% {
-    transform: translateX(2px) scale(1.02);
+    transform: translateY(-1px) scale(1);
   }
   100% {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateY(0) scale(1);
     filter: blur(0);
   }
 }
 
-/* Piece 3 (right arrow) — slides in last, completing the logo */
+/* Piece 3 (right arrow) — slides from the right, matching its pointing direction */
 @keyframes logo-piece-3 {
   0% {
     opacity: 0;
-    transform: translateX(-35px) scale(0.7);
-    filter: blur(6px);
+    transform: translate(45px, -15px) scale(0.6) rotate(6deg);
+    filter: blur(8px);
   }
-  50% {
-    opacity: 0.6;
-    filter: blur(2px);
+  55% {
+    opacity: 0.8;
+    transform: translate(-2px, 1px) scale(1.01) rotate(-0.3deg);
+    filter: blur(1px);
   }
-  80% {
-    transform: translateX(2px) scale(1.03);
+  82% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
   }
   100% {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translate(0, 0) scale(1) rotate(0deg);
     filter: blur(0);
   }
 }
 
-/* ── Logo Piece Color Shifting ── */
-
-/* Piece 1 (left): starts dark, breathes to light and back — 4s cycle */
-@keyframes color-shift-1 {
-  0%   { fill: #1ba577; }
-  33%  { fill: #5bbf9a; }
-  66%  { fill: #9dd3c0; }
-  100% { fill: #1ba577; }
+/* ── Magnetic Snap Flash — brief brightness spike when pieces lock ── */
+@keyframes snap-flash {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.4); }
 }
 
+/* ── Light Sweep — sophisticated sheen that travels across all pieces ── */
+@keyframes light-sweep-1 {
+  0%, 100% { fill: #1ba577; }
+  12% { fill: #4ecda0; }
+  24% { fill: #1ba577; }
+}
+
+@keyframes light-sweep-2 {
+  0%, 100% { fill: #1ba577; }
+  18% { fill: #1ba577; }
+  30% { fill: #4ecda0; }
+  42% { fill: #1ba577; }
+}
+
+@keyframes light-sweep-3 {
+  0%, 100% { fill: #9dd3c0; }
+  36% { fill: #9dd3c0; }
+  48% { fill: #c8e8dd; }
+  60% { fill: #9dd3c0; }
+}
+
+/* Piece 1: enter from bottom-left → snap flash → subtle light sweep */
 .animate-color-shift-1 {
   fill: #1ba577;
   animation:
-    logo-piece-1 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both,
-    color-shift-1 4s ease-in-out 1.3s infinite;
+    logo-piece-1 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both,
+    snap-flash 0.25s ease-out 1.15s both,
+    light-sweep-1 6s ease-in-out 2s infinite;
 }
 
-/* Piece 2 (center): starts light, breathes to dark — offset phase, 5s cycle */
-@keyframes color-shift-2 {
-  0%   { fill: #9dd3c0; }
-  33%  { fill: #3aad8a; }
-  66%  { fill: #148f63; }
-  100% { fill: #9dd3c0; }
-}
-
+/* Piece 2: drop from above → snap flash → light sweep (offset) */
 .animate-color-shift-2 {
   fill: #1ba577;
   animation:
-    logo-piece-2 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both,
-    color-shift-2 5s ease-in-out 1.3s infinite;
+    logo-piece-2 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both,
+    snap-flash 0.25s ease-out 1.15s both,
+    light-sweep-2 6s ease-in-out 2s infinite;
 }
 
-/* Piece 3 (right): starts light, pulses to deep and back — 3.5s cycle */
-@keyframes color-shift-3 {
-  0%   { fill: #9dd3c0; }
-  25%  { fill: #5bbf9a; }
-  50%  { fill: #1ba577; }
-  75%  { fill: #148f63; }
-  100% { fill: #9dd3c0; }
-}
-
+/* Piece 3: slide from right → snap flash → light sweep (offset) */
 .animate-color-shift-3 {
   fill: #9dd3c0;
   animation:
-    logo-piece-3 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both,
-    color-shift-3 3.5s ease-in-out 1.3s infinite;
+    logo-piece-3 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.65s both,
+    snap-flash 0.25s ease-out 1.15s both,
+    light-sweep-3 6s ease-in-out 2s infinite;
 }
 
-/* Hero glow — pulses after logo assembles */
+/* Hero glow — builds during assembly, settles into gentle breathe */
 @keyframes hero-glow {
-  0% { opacity: 0; transform: scale(0.5); }
+  0% { opacity: 0; transform: scale(0.3); }
   100% { opacity: 1; transform: scale(1); }
 }
 
-@keyframes hero-glow-pulse {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.1); }
+@keyframes hero-glow-snap {
+  0% { opacity: 1; transform: scale(1); }
+  40% { opacity: 1; transform: scale(1.25); }
+  100% { opacity: 0.7; transform: scale(1); }
+}
+
+@keyframes hero-glow-breathe {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.06); }
 }
 
 .animate-hero-glow {
   animation:
-    hero-glow 0.8s ease-out 0.8s both,
-    hero-glow-pulse 4s ease-in-out 1.6s infinite;
+    hero-glow 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both,
+    hero-glow-snap 0.5s ease-out 1.15s both,
+    hero-glow-breathe 5s ease-in-out 2s infinite;
+}
+
+/* ── Reduced Motion: respect user preference ── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-color-shift-1,
+  .animate-color-shift-2,
+  .animate-color-shift-3,
+  .animate-hero-glow,
+  .animate-float-slow,
+  .animate-float-medium,
+  .animate-float-reverse {
+    animation: none !important;
+  }
 }
 
 /* ── Academic Prose Styles for AI Responses ── */

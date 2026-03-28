@@ -9,392 +9,6 @@ const BRAND = {
   light: "#9dd3c0",
 } as const;
 
-/* ─── Floating Logo Shape ─── */
-interface FloatingShapeProps {
-  className?: string;
-  size?: number;
-  opacity?: number;
-  variant?: "full" | "chevron-left" | "chevron-right" | "arrow";
-  delay?: string;
-  duration?: string;
-}
-
-function FloatingShape({
-  className = "",
-  size = 60,
-  opacity = 0.12,
-  variant = "full",
-  delay = "0s",
-  duration = "20s",
-}: FloatingShapeProps) {
-  const shapes: Record<string, React.ReactNode> = {
-    full: (
-      <svg
-        width={size}
-        height={size * 0.864}
-        viewBox="0 0 84.785 73.288"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <polygon
-          points="48.622 0 48.622 72.327 84.785 36.164 48.622 0"
-          fill={BRAND.light}
-          opacity={opacity}
-        />
-        <polygon
-          points="60.741 37.124 24.577 .96 24.577 25.538 36.164 37.124 24.577 48.71 24.577 73.288 60.741 37.124"
-          fill={BRAND.dark}
-          opacity={opacity}
-        />
-        <polygon
-          points="0 .96 0 12.679 24.445 37.124 0 61.569 0 73.288 24.577 48.71 24.577 25.538 0 .96"
-          fill={BRAND.dark}
-          opacity={opacity}
-        />
-      </svg>
-    ),
-    "chevron-left": (
-      <svg
-        width={size * 0.4}
-        height={size * 0.864}
-        viewBox="0 0 24.577 73.288"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <polygon
-          points="0 .96 0 12.679 24.445 37.124 0 61.569 0 73.288 24.577 48.71 24.577 25.538 0 .96"
-          fill={BRAND.dark}
-          opacity={opacity}
-        />
-      </svg>
-    ),
-    "chevron-right": (
-      <svg
-        width={size * 0.43}
-        height={size * 0.864}
-        viewBox="0 0 36.208 73.288"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <polygon
-          points="36.208 37.124 0 .96 0 25.538 11.587 37.124 0 48.71 0 73.288 36.208 37.124"
-          fill={BRAND.dark}
-          opacity={opacity}
-        />
-      </svg>
-    ),
-    arrow: (
-      <svg
-        width={size * 0.43}
-        height={size * 0.864}
-        viewBox="0 0 36.163 72.327"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <polygon
-          points="0 0 0 72.327 36.163 36.164 0 0"
-          fill={BRAND.light}
-          opacity={opacity}
-        />
-      </svg>
-    ),
-  };
-
-  return (
-    <div
-      className={`absolute pointer-events-none ${className}`}
-      style={{ animationDelay: delay, animationDuration: duration }}
-    >
-      {shapes[variant]}
-    </div>
-  );
-}
-
-/* ─── Parallax Shapes Container ─── */
-function HeroShapes() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scrollY, setScrollY] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  return (
-    <div ref={containerRef} className="absolute inset-0 -z-10 overflow-hidden">
-      {/* Large logo - top left, slow float */}
-      <FloatingShape
-        variant="full"
-        size={140}
-        opacity={0.06}
-        className="animate-float-slow top-[10%] left-[5%]"
-        delay="0s"
-        duration="25s"
-      />
-      {/* Chevron right - top right area */}
-      <FloatingShape
-        variant="chevron-right"
-        size={80}
-        opacity={0.1}
-        className="animate-float-medium top-[15%] right-[10%]"
-        delay="2s"
-        duration="18s"
-      />
-      {/* Arrow - mid left */}
-      <FloatingShape
-        variant="arrow"
-        size={60}
-        opacity={0.08}
-        className="animate-float-reverse top-[45%] left-[8%]"
-        delay="4s"
-        duration="22s"
-      />
-      {/* Chevron left - bottom right */}
-      <FloatingShape
-        variant="chevron-left"
-        size={100}
-        opacity={0.07}
-        className="animate-float-slow top-[60%] right-[6%]"
-        delay="1s"
-        duration="20s"
-      />
-      {/* Small full logo - center right */}
-      <FloatingShape
-        variant="full"
-        size={50}
-        opacity={0.05}
-        className="animate-float-medium top-[30%] right-[25%]"
-        delay="3s"
-        duration="16s"
-      />
-      {/* Arrow - bottom left */}
-      <FloatingShape
-        variant="arrow"
-        size={90}
-        opacity={0.06}
-        className="animate-float-reverse top-[75%] left-[15%]"
-        delay="5s"
-        duration="24s"
-      />
-      {/* Tiny chevron right scattered */}
-      <FloatingShape
-        variant="chevron-right"
-        size={40}
-        opacity={0.1}
-        className="animate-float-slow top-[50%] left-[40%]"
-        delay="7s"
-        duration="19s"
-      />
-      {/* Extra shapes for depth */}
-      <FloatingShape
-        variant="full"
-        size={70}
-        opacity={0.04}
-        className="animate-float-medium top-[80%] right-[30%]"
-        delay="6s"
-        duration="21s"
-      />
-
-      {/* Parallax layer - moves with scroll */}
-      <div
-        className="absolute inset-0 transition-none"
-        style={{ transform: `translateY(${scrollY * 0.15}px)` }}
-      >
-        <FloatingShape
-          variant="chevron-left"
-          size={55}
-          opacity={0.09}
-          className="animate-float-reverse top-[20%] left-[30%]"
-          delay="2.5s"
-          duration="17s"
-        />
-        <FloatingShape
-          variant="arrow"
-          size={45}
-          opacity={0.07}
-          className="animate-float-slow top-[65%] right-[20%]"
-          delay="4.5s"
-          duration="23s"
-        />
-      </div>
-    </div>
-  );
-}
-
-const FEATURES = [
-  {
-    icon: (
-      <svg
-        className="w-7 h-7"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={1.5}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"
-        />
-      </svg>
-    ),
-    title: "Deep Regulatory Knowledge",
-    description:
-      "Covers EU ETS, CSRD, CBAM, Taxonomy Regulation, and more — trained on authoritative legal sources.",
-  },
-  {
-    icon: (
-      <svg
-        className="w-7 h-7"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={1.5}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
-        />
-      </svg>
-    ),
-    title: "AI-Powered Answers",
-    description:
-      "Get instant, contextual responses powered by RAG technology — no more hours of manual research.",
-  },
-  {
-    icon: (
-      <svg
-        className="w-7 h-7"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={1.5}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-        />
-      </svg>
-    ),
-    title: "Source Citations",
-    description:
-      "Every answer is backed by traceable citations from official EU legal documents and directives.",
-  },
-  {
-    icon: (
-      <svg
-        className="w-7 h-7"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={1.5}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"
-        />
-      </svg>
-    ),
-    title: "Multi-Session Chat",
-    description:
-      "Maintain multiple conversation threads with full history — pick up right where you left off.",
-  },
-  {
-    icon: (
-      <svg
-        className="w-7 h-7"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={1.5}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
-        />
-      </svg>
-    ),
-    title: "Real-Time Streaming",
-    description:
-      "Watch answers appear in real time — no waiting for the full response to generate.",
-  },
-  {
-    icon: (
-      <svg
-        className="w-7 h-7"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={1.5}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
-        />
-      </svg>
-    ),
-    title: "Secure & Private",
-    description:
-      "Your conversations stay private. No data is shared with third parties or used for training.",
-  },
-];
-
-const REGULATIONS = [
-  {
-    abbr: "EU ETS",
-    name: "Emissions Trading System",
-    color: "from-emerald-500 to-teal-600",
-  },
-  {
-    abbr: "CSRD",
-    name: "Corporate Sustainability Reporting",
-    color: "from-teal-500 to-cyan-600",
-  },
-  {
-    abbr: "CBAM",
-    name: "Carbon Border Adjustment",
-    color: "from-cyan-500 to-blue-600",
-  },
-  {
-    abbr: "Taxonomy",
-    name: "EU Taxonomy Regulation",
-    color: "from-emerald-600 to-green-700",
-  },
-  {
-    abbr: "SFDR",
-    name: "Sustainable Finance Disclosure",
-    color: "from-green-500 to-emerald-600",
-  },
-  {
-    abbr: "RED III",
-    name: "Renewable Energy Directive",
-    color: "from-lime-500 to-green-600",
-  },
-];
-
-const STEPS = [
-  {
-    step: "01",
-    title: "Ask a Question",
-    description:
-      "Type your question about any EU environmental regulation or policy in plain language.",
-  },
-  {
-    step: "02",
-    title: "AI Retrieves Context",
-    description:
-      "Our RAG system searches authoritative EU legal documents to find the most relevant information.",
-  },
-  {
-    step: "03",
-    title: "Get Cited Answers",
-    description:
-      "Receive a clear, structured answer with inline citations linking back to the original legal sources.",
-  },
-];
-
 /* ─── Intersection Observer Hook ─── */
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -440,33 +54,32 @@ function Logo({ className = "w-10 h-10" }: { className?: string }) {
   );
 }
 
-/* ─── Animated Hero Logo (pieces slide in left→right) ─── */
+/* ─── Animated Hero Logo (directional piece assembly with snap) ─── */
 function AnimatedHeroLogo() {
   return (
-    <div className="relative w-24 h-20 md:w-40 md:h-36 mx-auto">
+    <div className="relative w-20 h-17 md:w-32 md:h-28 motion-reduce:!animate-none">
       {/* Glow backdrop */}
-      <div className="absolute inset-0 animate-hero-glow">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 md:w-56 md:h-56 bg-emerald-400/20 dark:bg-emerald-500/15 rounded-full blur-3xl" />
+      <div className="absolute inset-0 animate-hero-glow motion-reduce:opacity-60 motion-reduce:!animate-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-36 h-36 md:w-44 md:h-44 bg-emerald-400/15 dark:bg-emerald-500/12 rounded-full blur-3xl" />
       </div>
 
       <svg
         className="w-full h-full relative z-10"
         viewBox="0 0 84.785 73.288"
         xmlns="http://www.w3.org/2000/svg"
+        role="img"
+        aria-label="SustainNexus logo"
       >
-        {/* Piece 1: Left chevron — enters first, color shifts dark↔light */}
         <polygon
-          className="animate-logo-piece-1 animate-color-shift-1"
+          className="animate-color-shift-1 motion-reduce:!animate-none motion-reduce:fill-[#1ba577]"
           points="0 .96 0 12.679 24.445 37.124 0 61.569 0 73.288 24.577 48.71 24.577 25.538 0 .96"
         />
-        {/* Piece 2: Center chevron — enters second, color shifts light↔dark */}
         <polygon
-          className="animate-logo-piece-2 animate-color-shift-2"
+          className="animate-color-shift-2 motion-reduce:!animate-none motion-reduce:fill-[#1ba577]"
           points="60.741 37.124 24.577 .96 24.577 25.538 36.164 37.124 24.577 48.71 24.577 73.288 60.741 37.124"
         />
-        {/* Piece 3: Right arrow — enters last, color shifts dark↔light */}
         <polygon
-          className="animate-logo-piece-3 animate-color-shift-3"
+          className="animate-color-shift-3 motion-reduce:!animate-none motion-reduce:fill-[#9dd3c0]"
           points="48.622 0 48.622 72.327 84.785 36.164 48.622 0"
         />
       </svg>
@@ -474,27 +87,136 @@ function AnimatedHeroLogo() {
   );
 }
 
-/* ─── Section Wrapper ─── */
-function Section({
+/* ─── Reveal Wrapper ─── */
+function Reveal({
   children,
   className = "",
-  id,
+  delay = 0,
 }: {
   children: React.ReactNode;
   className?: string;
-  id?: string;
+  delay?: number;
 }) {
-  const { ref, inView } = useInView();
+  const { ref, inView } = useInView(0.1);
   return (
-    <section
-      id={id}
+    <div
       ref={ref}
-      className={`transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"} ${className}`}
+      className={`transition-all duration-700 ease-out ${
+        inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+      } ${className}`}
+      style={{ transitionDelay: `${delay}ms` }}
     >
       {children}
-    </section>
+    </div>
   );
 }
+
+/* ─── Data ─── */
+const FEATURES = [
+  {
+    title: "Deep Regulatory Knowledge",
+    description:
+      "Covers EU ETS, CSRD, CBAM, Taxonomy Regulation, and more — trained on authoritative legal sources.",
+  },
+  {
+    title: "AI-Powered Answers",
+    description:
+      "Get instant, contextual responses powered by RAG technology — no more hours of manual research.",
+  },
+  {
+    title: "Source Citations",
+    description:
+      "Every answer is backed by traceable citations from official EU legal documents and directives.",
+  },
+  {
+    title: "Multi-Session Chat",
+    description:
+      "Maintain multiple conversation threads with full history — pick up right where you left off.",
+  },
+  {
+    title: "Real-Time Streaming",
+    description:
+      "Watch answers appear in real time — no waiting for the full response to generate.",
+  },
+  {
+    title: "Secure & Private",
+    description:
+      "Your conversations stay private. No data is shared with third parties or used for training.",
+  },
+];
+
+const REGULATIONS = [
+  { abbr: "EU ETS", name: "Emissions Trading System" },
+  { abbr: "CSRD", name: "Corporate Sustainability Reporting" },
+  { abbr: "CBAM", name: "Carbon Border Adjustment" },
+  { abbr: "Taxonomy", name: "EU Taxonomy Regulation" },
+  { abbr: "SFDR", name: "Sustainable Finance Disclosure" },
+  { abbr: "RED III", name: "Renewable Energy Directive" },
+];
+
+const STEPS = [
+  {
+    num: "01",
+    title: "Ask a Question",
+    description:
+      "Type your question about any EU environmental regulation in plain language.",
+  },
+  {
+    num: "02",
+    title: "AI Retrieves Context",
+    description:
+      "Our RAG system searches authoritative EU legal documents for the most relevant information.",
+  },
+  {
+    num: "03",
+    title: "Get Cited Answers",
+    description:
+      "Receive a clear, structured answer with inline citations linking to the original legal sources.",
+  },
+];
+
+const PLATFORMS = [
+  {
+    title: "Carbon Account & Management",
+    action: "Measure & Reduce Carbon Emissions",
+    accent: "bg-emerald-100 dark:bg-emerald-950/40",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <text x="2" y="11" fontSize="7" fontWeight="700" fill="#059669" stroke="none" fontFamily="sans-serif">CO</text>
+        <text x="13.5" y="14" fontSize="5" fontWeight="700" fill="#059669" stroke="none" fontFamily="sans-serif">2</text>
+        <path d="M4 18 Q8 14 12 16 Q16 18 20 15" stroke="#34d399" strokeWidth="1.5" fill="none" />
+        <path d="M4 20 Q8 16.5 12 18 Q16 19.5 20 17" stroke="#a7f3d0" strokeWidth="1" fill="none" opacity="0.6" />
+      </svg>
+    ),
+  },
+  {
+    title: "ESG Data Management",
+    action: "Streamline ESG Reporting",
+    accent: "bg-sky-100 dark:bg-sky-950/40",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+        <rect x="4" y="14" width="3" height="6" rx="0.5" fill="#7dd3fc" />
+        <rect x="9" y="10" width="3" height="10" rx="0.5" fill="#38bdf8" />
+        <rect x="14" y="6" width="3" height="14" rx="0.5" fill="#0ea5e9" />
+        <rect x="19" y="3" width="3" height="17" rx="0.5" fill="#0284c7" />
+      </svg>
+    ),
+  },
+  {
+    title: "Product Lifecycle Assessment",
+    action: "Evaluate Environmental Impact",
+    accent: "bg-amber-100 dark:bg-amber-950/40",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2a10 10 0 0 1 0 20" stroke="#f59e0b" strokeWidth="1.5" />
+        <path d="M12 22a10 10 0 0 1 0-20" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="4 2" />
+        <path d="M16 8l2-2m0 0l-1-1m1 1l1-1" stroke="#d97706" strokeWidth="1.5" />
+        <path d="M8 16l-2 2m0 0l1 1m-1-1l-1 1" stroke="#d97706" strokeWidth="1.5" />
+        <circle cx="12" cy="12" r="2.5" fill="#fcd34d" opacity="0.5" />
+      </svg>
+    ),
+  },
+];
 
 /* ─── Navbar ─── */
 function Navbar() {
@@ -517,86 +239,67 @@ function Navbar() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl shadow-sm border-b border-gray-200/50 dark:border-gray-800/50"
+          ? "bg-stone-50/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-stone-200/60 dark:border-gray-800/60"
           : "bg-transparent"
       }`}
     >
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <Logo className="w-8 h-8 transition-transform group-hover:scale-110" />
-          <span className="text-[36px] font-bold tracking-tight font-brand">
+      <div className="max-w-6xl mx-auto px-5 h-14 md:h-16 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 group">
+          <Logo className="w-7 h-7 transition-transform group-hover:scale-105" />
+          <span className="text-2xl md:text-[28px] font-bold tracking-tight font-brand leading-none">
             <span className="text-[#1ba577]">Sustain</span>
             <span className="text-[#9dd3c0]">Nexus</span>
           </span>
         </Link>
 
-        {/* Desktop Links */}
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden md:flex items-center gap-7">
           {navLinks.map((link) => (
             <a
               key={link.label}
               href={link.href}
-              className="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-[#1ba577] transition-colors"
+              className="text-[13px] font-medium text-stone-500 dark:text-gray-400 hover:text-stone-900 dark:hover:text-white transition-colors"
             >
               {link.label}
             </a>
           ))}
           <Link
             href="/chat"
-            className="px-5 py-2 rounded-full text-sm font-semibold text-white bg-[#1ba577] hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/25 hover:shadow-lg hover:shadow-emerald-500/30"
+            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#1ba577] hover:bg-emerald-600 transition-colors rounded-lg"
           >
             Try It Free
           </Link>
         </div>
 
-        {/* Mobile Menu Button */}
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          className="md:hidden p-2 -mr-2 rounded-lg hover:bg-stone-100 dark:hover:bg-gray-800 transition-colors"
           aria-label="Toggle menu"
         >
-          <svg
-            className="w-6 h-6 text-gray-600 dark:text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+          <svg className="w-5 h-5 text-stone-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             {mobileOpen ? (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             ) : (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             )}
           </svg>
         </button>
       </div>
 
-      {/* Mobile Menu */}
       {mobileOpen && (
-        <div className="md:hidden bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 px-6 pb-4">
+        <div className="md:hidden bg-stone-50/95 dark:bg-gray-950/95 backdrop-blur-xl border-b border-stone-200 dark:border-gray-800 px-5 pb-4">
           {navLinks.map((link) => (
             <a
               key={link.label}
               href={link.href}
               onClick={() => setMobileOpen(false)}
-              className="block py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-[#1ba577]"
+              className="block py-3 text-sm font-medium text-stone-600 dark:text-gray-400 hover:text-[#1ba577]"
             >
               {link.label}
             </a>
           ))}
           <Link
             href="/chat"
-            className="mt-2 block text-center px-5 py-2.5 rounded-full text-sm font-semibold text-white bg-[#1ba577] hover:bg-emerald-600 transition-all"
+            className="mt-2 block text-center px-5 py-2.5 text-sm font-semibold text-white bg-[#1ba577] rounded-lg"
           >
             Try It Free
           </Link>
@@ -609,462 +312,326 @@ function Navbar() {
 /* ─── Page ─── */
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950 font-display overflow-x-hidden">
+    <div className="min-h-screen bg-[#f8faf8] dark:bg-gray-950 font-display overflow-x-hidden">
       <Navbar />
 
       {/* ── Hero ── */}
-      <div className="relative pt-24 pb-16 md:pt-44 md:pb-32 overflow-hidden">
-        {/* Background decoration */}
+      <header className="relative pt-20 pb-12 md:pt-36 md:pb-24 overflow-hidden">
+        {/* Subtle background — single soft wash, no blobs */}
         <div className="absolute inset-0 -z-10">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-gradient-radial from-emerald-100/60 via-transparent to-transparent dark:from-emerald-900/20 rounded-full blur-3xl" />
-          <div className="absolute top-20 right-0 w-96 h-96 bg-gradient-to-bl from-teal-100/40 to-transparent dark:from-teal-900/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-emerald-100/40 to-transparent dark:from-emerald-900/10 rounded-full blur-3xl" />
-          {/* Grid pattern */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#10b98108_1px,transparent_1px),linear-gradient(to_bottom,#10b98108_1px,transparent_1px)] bg-[size:64px_64px]" />
+          <div className="absolute top-0 right-0 w-[70%] h-[80%] bg-gradient-to-bl from-emerald-50/80 via-transparent to-transparent dark:from-emerald-950/20 rounded-full" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#1ba57704_1px,transparent_1px),linear-gradient(to_bottom,#1ba57704_1px,transparent_1px)] bg-[size:80px_80px]" />
         </div>
 
-        {/* Floating logo shapes */}
-        <HeroShapes />
+        <div className="max-w-6xl mx-auto px-5">
+          {/* Mobile: stacked. Desktop: two-column asymmetric */}
+          <div className="md:grid md:grid-cols-[1fr_0.85fr] md:gap-16 md:items-center">
 
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 mb-8 animate-fade-in-up-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 tracking-wide uppercase">
-              AI-Powered Legal Research
-            </span>
-          </div>
-
-          {/* Animated Hero Logo - pieces slide in left to right */}
-          <div className="mb-5 md:mb-8">
-            <AnimatedHeroLogo />
-          </div>
-
-          {/* Headline */}
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 animate-fade-in-up-3">
-            <span className="text-gray-900 dark:text-white">Navigate </span>
-            <span className="bg-gradient-to-r from-[#1ba577] to-[#9dd3c0] bg-clip-text text-transparent">
-              EU ESG Law, Policy
-            </span>
-            <br />
-            <span className="text-gray-900 dark:text-white">
-              &amp; Standards with AI
-            </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="text-sm md:text-base text-emerald-700 dark:text-emerald-400 font-semibold tracking-wide uppercase mb-6 md:mb-8 animate-fade-in-up-3">
-            ESG Regulatory Intelligence &amp; Sustainability Strategy Platform
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up-4">
-            <Link
-              href="/chat"
-              className="group px-8 py-3.5 rounded-full text-base font-semibold text-white bg-[#1ba577] hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5"
-            >
-              Start Asking Questions
-              <span className="inline-block ml-2 transition-transform group-hover:translate-x-1">
-                &rarr;
-              </span>
-            </Link>
-            <a
-              href="#how-it-works"
-              className="px-8 py-3.5 rounded-full text-base font-semibold text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:border-emerald-400 dark:hover:border-emerald-600 hover:text-[#1ba577] transition-all hover:-translate-y-0.5"
-            >
-              See How It Works
-            </a>
-          </div>
-
-          {/* Integrated Sustainability Platforms */}
-          <div className="mt-16 md:mt-20 max-w-4xl mx-auto animate-fade-in-up-6">
-            <p className="text-sm font-semibold text-[#1ba577] tracking-wide uppercase mb-6 text-center">
-              Integrated Sustainability Platforms
-            </p>
-            <div className="grid sm:grid-cols-3 gap-5">
-              {/* Carbon Account & Management */}
-              <div className="group flex flex-col items-center p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-                <div className="w-16 h-16 rounded-full bg-white border-2 border-gray-200 dark:border-gray-700 flex items-center justify-center mb-4 group-hover:border-emerald-400 transition-colors">
-                  <svg
-                    className="w-8 h-8 text-gray-700 dark:text-gray-300"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <text
-                      x="3"
-                      y="11"
-                      fontSize="7"
-                      fontWeight="700"
-                      fill="currentColor"
-                      stroke="none"
-                      fontFamily="sans-serif"
-                    >
-                      CO
-                    </text>
-                    <text
-                      x="14"
-                      y="14"
-                      fontSize="5"
-                      fontWeight="700"
-                      fill="currentColor"
-                      stroke="none"
-                      fontFamily="sans-serif"
-                    >
-                      2
-                    </text>
-                    <path d="M4 18 Q8 14 12 16 Q16 18 20 15" />
-                  </svg>
-                </div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 text-center flex-1">
-                  Carbon Account &amp; Management
-                </h3>
-                <a
-                  href="#"
-                  className="mt-auto text-sm font-medium text-[#1ba577] hover:text-emerald-600 transition-colors flex items-center gap-1"
-                >
-                  Measure &amp; Reduce Carbon Emissions
-                  <span>&rarr;</span>
-                </a>
+            {/* Left column — text */}
+            <div>
+              <div className="flex items-center gap-3 mb-6 animate-fade-in-up-1">
+                <AnimatedHeroLogo />
               </div>
 
-              {/* ESG Data Management */}
-              <div className="group flex flex-col items-center p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-                <div className="w-16 h-16 rounded-full bg-white border-2 border-gray-200 dark:border-gray-700 flex items-center justify-center mb-4 group-hover:border-emerald-400 transition-colors">
-                  <svg
-                    className="w-8 h-8 text-gray-700 dark:text-gray-300"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect
-                      x="4"
-                      y="14"
-                      width="3"
-                      height="6"
-                      rx="0.5"
-                      fill="currentColor"
-                      opacity="0.3"
-                    />
-                    <rect
-                      x="9"
-                      y="10"
-                      width="3"
-                      height="10"
-                      rx="0.5"
-                      fill="currentColor"
-                      opacity="0.5"
-                    />
-                    <rect
-                      x="14"
-                      y="6"
-                      width="3"
-                      height="14"
-                      rx="0.5"
-                      fill="currentColor"
-                      opacity="0.7"
-                    />
-                    <rect
-                      x="19"
-                      y="3"
-                      width="3"
-                      height="17"
-                      rx="0.5"
-                      fill="currentColor"
-                      opacity="0.9"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 text-center flex-1">
-                  ESG Data Management
-                </h3>
-                <a
-                  href="#"
-                  className="mt-auto text-sm font-medium text-[#1ba577] hover:text-emerald-600 transition-colors flex items-center gap-1"
-                >
-                  Streamline ESG Reporting
-                  <span>&rarr;</span>
-                </a>
-              </div>
+              <h1 className="text-[clamp(2rem,6vw,3.75rem)] leading-[1.08] font-extrabold tracking-tight text-stone-900 dark:text-white mb-5 animate-fade-in-up-2">
+                Navigate EU ESG
+                <br />
+                Law &amp; Policy
+                <br />
+                <span className="text-[#1ba577]">with AI</span>
+              </h1>
 
-              {/* Product Lifecycle Assessment */}
-              <div className="group flex flex-col items-center p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-                <div className="w-16 h-16 rounded-full bg-white border-2 border-gray-200 dark:border-gray-700 flex items-center justify-center mb-4 group-hover:border-emerald-400 transition-colors">
-                  <svg
-                    className="w-8 h-8 text-gray-700 dark:text-gray-300"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M12 2a10 10 0 0 1 0 20" />
-                    <path d="M12 22a10 10 0 0 1 0-20" strokeDasharray="4 2" />
-                    <path d="M16 8l2-2m0 0l-1-1m1 1l1-1" />
-                    <path d="M8 16l-2 2m0 0l1 1m-1-1l-1 1" />
-                  </svg>
-                </div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 text-center flex-1">
-                  Product Lifecycle Assessment
-                </h3>
-                <a
-                  href="#"
-                  className="mt-auto text-sm font-medium text-[#1ba577] hover:text-emerald-600 transition-colors flex items-center gap-1"
+              <p className="text-base md:text-lg text-stone-500 dark:text-gray-400 leading-relaxed max-w-lg mb-8 animate-fade-in-up-3">
+                Instant, cited answers on EU environmental regulations.
+                Built for compliance teams, legal professionals, and
+                sustainability strategists.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 animate-fade-in-up-4">
+                <Link
+                  href="/chat"
+                  className="group inline-flex items-center justify-center gap-2 px-6 py-3 text-[15px] font-semibold text-white bg-[#1ba577] hover:bg-emerald-600 transition-colors rounded-lg"
                 >
-                  Evaluate Environmental Impact
-                  <span>&rarr;</span>
+                  Start Asking Questions
+                  <span className="inline-block transition-transform group-hover:translate-x-0.5">&rarr;</span>
+                </Link>
+                <a
+                  href="#how-it-works"
+                  className="inline-flex items-center justify-center px-6 py-3 text-[15px] font-semibold text-stone-600 dark:text-gray-300 border border-stone-300 dark:border-gray-700 hover:border-stone-400 dark:hover:border-gray-500 transition-colors rounded-lg"
+                >
+                  See How It Works
                 </a>
               </div>
             </div>
-          </div>
 
-          {/* Hero mock */}
-          <div className="mt-16 md:mt-20 max-w-3xl mx-auto">
-            <div className="relative rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-2xl shadow-gray-200/50 dark:shadow-black/30 overflow-hidden">
-              {/* Title bar */}
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-400" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                  <div className="w-3 h-3 rounded-full bg-green-400" />
+            {/* Right column — chat preview (desktop only, inline) */}
+            <div className="hidden md:block animate-fade-in-up-5">
+              <div className="rounded-xl border border-stone-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xl shadow-stone-200/40 dark:shadow-black/20 overflow-hidden">
+                {/* Minimal top bar */}
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-stone-100 dark:border-gray-800">
+                  <Logo className="w-4 h-4" />
+                  <span className="text-xs font-semibold text-stone-400 dark:text-gray-500 font-brand">SustainNexus</span>
                 </div>
-                <span className="ml-2 text-xs text-gray-400 font-medium font-brand">
-                  SustainNexus
-                </span>
-              </div>
-              {/* Chat preview */}
-              <div className="p-6 space-y-4 text-left">
-                {/* User message */}
-                <div className="flex justify-end">
-                  <div className="px-4 py-2.5 rounded-2xl rounded-br-md bg-[#1ba577] text-white text-sm max-w-[80%]">
-                    What are the key reporting requirements under the CSRD?
+                <div className="p-5 space-y-3 text-left">
+                  <div className="flex justify-end">
+                    <div className="px-4 py-2.5 rounded-xl rounded-br-sm bg-[#1ba577] text-white text-[13px] leading-relaxed max-w-[85%]">
+                      What are the key reporting requirements under the CSRD?
+                    </div>
                   </div>
-                </div>
-                {/* AI response */}
-                <div className="flex justify-start">
-                  <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-gray-100 dark:bg-gray-800 text-sm text-gray-800 dark:text-gray-200 max-w-[90%] space-y-2">
-                    <p>
-                      The{" "}
-                      <strong>
-                        Corporate Sustainability Reporting Directive (CSRD)
-                      </strong>{" "}
-                      requires companies to report on:
-                    </p>
-                    <ul className="list-disc ml-5 space-y-1 text-gray-600 dark:text-gray-400">
-                      <li>Environmental impact and climate targets</li>
-                      <li>Social and governance factors</li>
-                      <li>Due diligence processes</li>
-                    </ul>
-                    <div className="flex gap-1 mt-2">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                        [1] Directive 2022/2464
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                        [2] ESRS Standards
-                      </span>
+                  <div className="flex justify-start">
+                    <div className="px-4 py-3 rounded-xl rounded-bl-sm bg-stone-100 dark:bg-gray-800 text-[13px] leading-relaxed text-stone-700 dark:text-gray-300 max-w-[90%] space-y-2">
+                      <p>
+                        The <strong className="text-stone-900 dark:text-white">Corporate Sustainability Reporting Directive (CSRD)</strong> requires companies to report on:
+                      </p>
+                      <ul className="list-disc ml-4 space-y-0.5 text-stone-500 dark:text-gray-400 text-[12px]">
+                        <li>Environmental impact and climate targets</li>
+                        <li>Social and governance factors</li>
+                        <li>Due diligence processes</li>
+                      </ul>
+                      <div className="flex gap-1.5 mt-2">
+                        <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900">
+                          [1] Directive 2022/2464
+                        </span>
+                        <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900">
+                          [2] ESRS Standards
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            {/* Glow underneath */}
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-3/4 h-16 bg-emerald-400/20 dark:bg-emerald-500/10 rounded-full blur-2xl" />
+          </div>
+        </div>
+      </header>
+
+      {/* ── Platforms ── */}
+      <Reveal>
+        <section className="py-10 md:py-16">
+          <div className="max-w-6xl mx-auto px-5">
+            <p className="text-[11px] font-semibold text-stone-400 dark:text-gray-500 tracking-[0.15em] uppercase mb-5">
+              Integrated Sustainability Platforms
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {PLATFORMS.map((p, i) => (
+                <Reveal key={i} delay={i * 80}>
+                  <a
+                    href="#"
+                    className="group flex items-start gap-4 p-4 rounded-lg border border-stone-200 dark:border-gray-800 hover:border-[#1ba577]/40 bg-white dark:bg-gray-900 transition-colors"
+                  >
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-lg ${p.accent} flex items-center justify-center transition-transform group-hover:scale-105`}>
+                      {p.icon}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold text-stone-800 dark:text-white leading-snug">
+                        {p.title}
+                      </h3>
+                      <p className="text-xs text-stone-400 dark:text-gray-500 mt-0.5">
+                        {p.action} &rarr;
+                      </p>
+                    </div>
+                  </a>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* ── Features — alternating list, not cards ── */}
+      <section id="features" className="py-14 md:py-24">
+        <div className="max-w-6xl mx-auto px-5">
+          <Reveal>
+            <div className="max-w-2xl mb-12 md:mb-16">
+              <p className="text-[11px] font-semibold text-[#1ba577] tracking-[0.15em] uppercase mb-2">
+                Capabilities
+              </p>
+              <h2 className="text-2xl md:text-[2.5rem] font-bold text-stone-900 dark:text-white leading-tight">
+                Built for legal research,
+                <br className="hidden md:block" />
+                not generic chat
+              </h2>
+            </div>
+          </Reveal>
+
+          <div className="grid md:grid-cols-2 gap-x-16 gap-y-8 md:gap-y-10">
+            {FEATURES.map((f, i) => (
+              <Reveal key={i} delay={i * 60}>
+                <div className="group flex gap-4 items-baseline">
+                  <span className="flex-shrink-0 text-[13px] font-bold text-[#1ba577]/60 tabular-nums">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <div>
+                    <h3 className="text-[15px] font-semibold text-stone-800 dark:text-white mb-1">
+                      {f.title}
+                    </h3>
+                    <p className="text-sm text-stone-500 dark:text-gray-400 leading-relaxed">
+                      {f.description}
+                    </p>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Regulations — horizontal flow, not card grid ── */}
+      <section
+        id="regulations"
+        className="py-14 md:py-24 border-y border-stone-200/60 dark:border-gray-800/60 bg-white dark:bg-gray-900/50"
+      >
+        <div className="max-w-6xl mx-auto px-5">
+          <Reveal>
+            <div className="md:grid md:grid-cols-[1fr_1.5fr] md:gap-16 md:items-start">
+              {/* Left — heading */}
+              <div className="mb-8 md:mb-0 md:sticky md:top-28">
+                <p className="text-[11px] font-semibold text-[#1ba577] tracking-[0.15em] uppercase mb-2">
+                  Coverage
+                </p>
+                <h2 className="text-2xl md:text-[2.5rem] font-bold text-stone-900 dark:text-white leading-tight mb-3">
+                  EU Regulations
+                  <br className="hidden md:block" />
+                  We Cover
+                </h2>
+                <p className="text-sm text-stone-500 dark:text-gray-400 leading-relaxed max-w-sm">
+                  Authoritative knowledge across the most critical EU
+                  environmental regulations and directives.
+                </p>
+              </div>
+
+              {/* Right — regulation items */}
+              <div className="space-y-3">
+                {REGULATIONS.map((reg, i) => (
+                  <Reveal key={reg.abbr} delay={i * 60}>
+                    <div className="group flex items-center justify-between p-4 md:p-5 rounded-lg border border-stone-200 dark:border-gray-800 hover:border-[#1ba577]/40 transition-colors bg-stone-50 dark:bg-gray-900">
+                      <div className="flex items-center gap-4">
+                        <span className="text-lg md:text-xl font-bold text-stone-900 dark:text-white group-hover:text-[#1ba577] transition-colors min-w-[5rem]">
+                          {reg.abbr}
+                        </span>
+                        <span className="text-sm text-stone-500 dark:text-gray-400">
+                          {reg.name}
+                        </span>
+                      </div>
+                      <svg
+                        className="w-4 h-4 text-stone-300 dark:text-gray-600 group-hover:text-[#1ba577] transition-colors flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </Reveal>
+                ))}
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── How It Works — numbered timeline ── */}
+      <section id="how-it-works" className="py-14 md:py-24">
+        <div className="max-w-4xl mx-auto px-5">
+          <Reveal>
+            <div className="max-w-2xl mb-12">
+              <p className="text-[11px] font-semibold text-[#1ba577] tracking-[0.15em] uppercase mb-2">
+                Process
+              </p>
+              <h2 className="text-2xl md:text-[2.5rem] font-bold text-stone-900 dark:text-white leading-tight">
+                Three steps to
+                <br className="hidden md:block" />
+                cited answers
+              </h2>
+            </div>
+          </Reveal>
+
+          <div className="space-y-6 md:space-y-0 md:grid md:grid-cols-3 md:gap-8">
+            {STEPS.map((s, i) => (
+              <Reveal key={i} delay={i * 100}>
+                <div className="relative">
+                  {/* Connecting line on desktop */}
+                  {i < STEPS.length - 1 && (
+                    <div className="hidden md:block absolute top-5 left-full w-8 h-px bg-stone-200 dark:bg-gray-800" />
+                  )}
+                  <div className="text-[2.5rem] md:text-[3rem] font-extrabold text-stone-100 dark:text-gray-800 leading-none mb-2 select-none">
+                    {s.num}
+                  </div>
+                  <h3 className="text-base font-semibold text-stone-800 dark:text-white mb-2">
+                    {s.title}
+                  </h3>
+                  <p className="text-sm text-stone-500 dark:text-gray-400 leading-relaxed">
+                    {s.description}
+                  </p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA — clean, no gradient box ── */}
+      <Reveal>
+        <section className="py-14 md:py-24 border-t border-stone-200/60 dark:border-gray-800/60">
+          <div className="max-w-3xl mx-auto px-5 text-center">
+            <Logo className="w-10 h-10 mx-auto mb-5 opacity-40" />
+            <h2 className="text-2xl md:text-[2.5rem] font-bold text-stone-900 dark:text-white leading-tight mb-4">
+              Ready to simplify
+              <br />
+              your legal research?
+            </h2>
+            <p className="text-base text-stone-500 dark:text-gray-400 max-w-md mx-auto mb-8 leading-relaxed">
+              Stop spending hours searching through EU regulations. Get
+              accurate, cited answers in seconds.
+            </p>
+            <Link
+              href="/chat"
+              className="inline-flex items-center gap-2 px-7 py-3.5 text-[15px] font-semibold text-white bg-[#1ba577] hover:bg-emerald-600 transition-colors rounded-lg"
+            >
+              Get Started for Free
+              <span>&rarr;</span>
+            </Link>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* ── Mobile chat preview — shown only on mobile ── */}
+      <div className="md:hidden px-5 pb-12">
+        <div className="rounded-xl border border-stone-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-lg shadow-stone-200/30 dark:shadow-black/20">
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-stone-100 dark:border-gray-800">
+            <Logo className="w-4 h-4" />
+            <span className="text-xs font-semibold text-stone-400 dark:text-gray-500 font-brand">SustainNexus</span>
+          </div>
+          <div className="p-4 space-y-3 text-left">
+            <div className="flex justify-end">
+              <div className="px-3.5 py-2 rounded-xl rounded-br-sm bg-[#1ba577] text-white text-[13px] leading-relaxed max-w-[85%]">
+                What are the CSRD reporting requirements?
+              </div>
+            </div>
+            <div className="flex justify-start">
+              <div className="px-3.5 py-2.5 rounded-xl rounded-bl-sm bg-stone-100 dark:bg-gray-800 text-[13px] text-stone-600 dark:text-gray-300 max-w-[90%]">
+                The <strong className="text-stone-800 dark:text-white">CSRD</strong> requires reporting on environmental impact, social factors, and due diligence processes...
+                <span className="inline-flex ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400">
+                  [1]
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Features ── */}
-      <Section
-        id="features"
-        className="py-24 md:py-32 bg-gray-50/50 dark:bg-gray-900/30"
-      >
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="text-sm font-semibold text-[#1ba577] tracking-wide uppercase mb-3">
-              Capabilities
-            </p>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Everything You Need for Legal Research
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 max-w-xl mx-auto">
-              Purpose-built for environmental law professionals who need
-              accurate, sourced answers fast.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {FEATURES.map((f, i) => (
-              <div
-                key={i}
-                className="group p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/5 hover:-translate-y-1"
-              >
-                <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-[#1ba577] mb-4 group-hover:scale-110 transition-transform">
-                  {f.icon}
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  {f.title}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                  {f.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
-
-      {/* ── Regulations Covered ── */}
-      <Section id="regulations" className="py-24 md:py-32">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="text-sm font-semibold text-[#1ba577] tracking-wide uppercase mb-3">
-              Coverage
-            </p>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              EU Regulations We Cover
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 max-w-xl mx-auto">
-              Our knowledge base covers the most critical EU environmental
-              regulations and directives.
-            </p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {REGULATIONS.map((reg) => (
-              <div
-                key={reg.abbr}
-                className="group relative overflow-hidden rounded-2xl p-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-transparent transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
-              >
-                {/* Hover gradient overlay */}
-                <div
-                  className={`absolute inset-0 bg-gradient-to-br ${reg.color} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
-                />
-                <div className="relative z-10">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white group-hover:text-white transition-colors mb-1">
-                    {reg.abbr}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-white/80 transition-colors">
-                    {reg.name}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
-
-      {/* ── How It Works ── */}
-      <Section
-        id="how-it-works"
-        className="py-24 md:py-32 bg-gray-50/50 dark:bg-gray-900/30"
-      >
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="text-sm font-semibold text-[#1ba577] tracking-wide uppercase mb-3">
-              Process
-            </p>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              How It Works
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 max-w-xl mx-auto">
-              Three simple steps from question to cited answer.
-            </p>
-          </div>
-
-          <div className="space-y-8">
-            {STEPS.map((s, i) => (
-              <div key={i} className="flex gap-6 items-start group">
-                <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-[#1ba577] to-[#9dd3c0] flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
-                  {s.step}
-                </div>
-                <div className="pt-1">
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                    {s.title}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                    {s.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
-
-      {/* ── CTA ── */}
-      <Section className="py-24 md:py-32">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#1ba577] to-teal-600 p-12 md:p-16">
-            {/* Pattern overlay */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:32px_32px]" />
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-            {/* Floating logo shapes in CTA */}
-            <FloatingShape
-              variant="arrow"
-              size={50}
-              opacity={0.15}
-              className="animate-float-slow top-[10%] left-[5%]"
-              delay="0s"
-              duration="18s"
-            />
-            <FloatingShape
-              variant="chevron-right"
-              size={35}
-              opacity={0.12}
-              className="animate-float-medium top-[70%] right-[8%]"
-              delay="3s"
-              duration="15s"
-            />
-            <FloatingShape
-              variant="chevron-left"
-              size={40}
-              opacity={0.1}
-              className="animate-float-reverse bottom-[15%] left-[20%]"
-              delay="1.5s"
-              duration="20s"
-            />
-
-            <div className="relative z-10">
-              <Logo className="w-14 h-14 mx-auto mb-6 brightness-0 invert opacity-80" />
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-                Ready to Simplify Your Legal Research?
-              </h2>
-              <p className="text-emerald-100 max-w-lg mx-auto mb-8 leading-relaxed">
-                Stop spending hours searching through EU regulations. Get
-                accurate, cited answers in seconds.
-              </p>
-              <Link
-                href="/chat"
-                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full text-base font-semibold bg-white text-[#1ba577] hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-              >
-                Get Started for Free
-                <span>&rarr;</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </Section>
-
       {/* ── Footer ── */}
-      <footer className="py-12 border-t border-gray-200 dark:border-gray-800">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2.5">
-              <Logo className="w-7 h-7" />
+      <footer className="py-8 border-t border-stone-200/60 dark:border-gray-800/60">
+        <div className="max-w-6xl mx-auto px-5">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Logo className="w-5 h-5" />
               <span className="text-sm font-bold font-brand">
                 <span className="text-[#1ba577]">Sustain</span>
                 <span className="text-[#9dd3c0]">Nexus</span>
               </span>
             </div>
-            <p className="text-sm text-gray-500 dark:text-gray-500">
+            <p className="text-xs text-stone-400 dark:text-gray-600">
               &copy; {new Date().getFullYear()} SustainNexus. ESG Regulatory
               Intelligence &amp; Sustainability Strategy Platform.
             </p>
