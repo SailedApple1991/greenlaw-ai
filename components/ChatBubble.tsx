@@ -32,154 +32,146 @@ function CitationSup({
 }) {
   const displayTooltip = tooltipText || `Reference ${number}`;
   const badgeRef = useRef<HTMLElement>(null);
-  const [position, setPosition] = useState<TooltipPosition>("top");
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
-
-  const calculatePosition = useCallback(() => {
-    if (!badgeRef.current) return;
-
-    const rect = badgeRef.current.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    const tooltipWidth = 320;
-    const tooltipHeight = 120;
-    const margin = 20;
-
-    const spaceTop = rect.top;
-    const spaceBottom = viewportHeight - rect.bottom;
-    const spaceLeft = rect.left;
-    const spaceRight = viewportWidth - rect.right;
-
-    if (spaceTop < tooltipHeight + margin) {
-      setPosition("bottom");
-      return;
-    }
-    if (spaceBottom < tooltipHeight + margin) {
-      setPosition("top");
-      return;
-    }
-    if (spaceLeft < tooltipWidth / 2 + margin) {
-      if (spaceRight >= tooltipWidth + margin) {
-        setPosition("right");
-        return;
-      }
-    }
-    if (spaceRight < tooltipWidth / 2 + margin) {
-      if (spaceLeft >= tooltipWidth + margin) {
-        setPosition("left");
-        return;
-      }
-    }
-    setPosition("top");
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    setIsVisible(false);
-  }, []);
-
+  const hideTimeout = useRef<ReturnType<typeof setTimeout>>();
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
 
-  const updateTooltipStyle = useCallback(() => {
+  const updatePosition = useCallback(() => {
     if (!badgeRef.current) return;
 
     const rect = badgeRef.current.getBoundingClientRect();
-    const tooltipWidth = 320;
-    const tooltipHeight = 120;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const tooltipWidth = Math.min(360, vw - 24);
     const gap = 8;
 
     const style: React.CSSProperties = {
       position: "fixed",
       width: tooltipWidth,
+      maxHeight: Math.min(280, vh * 0.4),
       zIndex: 9999,
     };
 
-    switch (position) {
-      case "top":
-        style.left = rect.left + rect.width / 2 - tooltipWidth / 2;
-        style.top = rect.top - tooltipHeight - gap;
-        if ((style.left as number) < 10) style.left = 10;
-        if ((style.left as number) + tooltipWidth > window.innerWidth - 10) {
-          style.left = window.innerWidth - tooltipWidth - 10;
-        }
-        break;
-      case "bottom":
-        style.left = rect.left + rect.width / 2 - tooltipWidth / 2;
-        style.top = rect.bottom + gap;
-        if ((style.left as number) < 10) style.left = 10;
-        if ((style.left as number) + tooltipWidth > window.innerWidth - 10) {
-          style.left = window.innerWidth - tooltipWidth - 10;
-        }
-        break;
-      case "left":
-        style.left = rect.left - tooltipWidth - gap;
-        style.top = rect.top + rect.height / 2 - tooltipHeight / 2;
-        break;
-      case "right":
-        style.left = rect.right + gap;
-        style.top = rect.top + rect.height / 2 - tooltipHeight / 2;
-        break;
+    // Prefer bottom on mobile (more natural), top on desktop
+    const spaceBelow = vh - rect.bottom;
+    const preferBottom = vw < 640 || spaceBelow > 200;
+
+    if (preferBottom) {
+      style.top = rect.bottom + gap;
+    } else {
+      style.bottom = vh - rect.top + gap;
     }
 
+    // Horizontal: center on badge, clamp to viewport
+    let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+    left = Math.max(12, Math.min(left, vw - tooltipWidth - 12));
+    style.left = left;
+
     setTooltipStyle(style);
-  }, [position]);
+  }, []);
 
-  const handleMouseEnter = useCallback(() => {
-    calculatePosition();
+  const show = useCallback(() => {
+    clearTimeout(hideTimeout.current);
     setIsVisible(true);
-    setTimeout(() => updateTooltipStyle(), 0);
-  }, [calculatePosition, updateTooltipStyle]);
+    requestAnimationFrame(updatePosition);
+  }, [updatePosition]);
 
-  const getTooltipClasses = () => {
-    const baseClasses =
-      "pointer-events-none p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl transition-all duration-200 font-display";
-    const visibilityClasses = isVisible
-      ? "visible opacity-100"
-      : "invisible opacity-0";
-    return `${baseClasses} ${visibilityClasses}`;
-  };
+  const hideDelayed = useCallback(() => {
+    hideTimeout.current = setTimeout(() => setIsVisible(false), 150);
+  }, []);
 
-  const TooltipContent = () => (
-    <span className={getTooltipClasses()} style={tooltipStyle}>
-      <span className="font-semibold text-emerald-400 block mb-1">
-        [{number}] {label || ""}
-      </span>
-      <span className="leading-relaxed">{displayTooltip}</span>
-    </span>
+  const cancelHide = useCallback(() => {
+    clearTimeout(hideTimeout.current);
+  }, []);
+
+  // Click-to-toggle for mobile
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (isVisible) {
+        setIsVisible(false);
+      } else {
+        show();
+      }
+    },
+    [isVisible, show],
   );
 
-  // If label exists, show "Label" with superscript number
+  // Close on outside click (mobile)
+  React.useEffect(() => {
+    if (!isVisible) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (
+        badgeRef.current &&
+        !badgeRef.current.contains(e.target as Node) &&
+        tooltipRef.current &&
+        !tooltipRef.current.contains(e.target as Node)
+      ) {
+        setIsVisible(false);
+      }
+    };
+    document.addEventListener("click", handleOutsideClick);
+    return () => document.removeEventListener("click", handleOutsideClick);
+  }, [isVisible]);
+
+  // Close on scroll
+  React.useEffect(() => {
+    if (!isVisible) return;
+    const handleScroll = () => setIsVisible(false);
+    window.addEventListener("scroll", handleScroll, { passive: true, capture: true });
+    return () => window.removeEventListener("scroll", handleScroll, { capture: true });
+  }, [isVisible]);
+
+  const TooltipPortal = () =>
+    isVisible ? (
+      <div
+        ref={tooltipRef}
+        className="p-3 bg-stone-900 dark:bg-stone-800 text-white text-[13px] rounded-lg shadow-2xl font-display overflow-y-auto overscroll-contain transition-opacity duration-150 opacity-100"
+        style={tooltipStyle}
+        onMouseEnter={cancelHide}
+        onMouseLeave={hideDelayed}
+      >
+        <span className="font-semibold text-emerald-400 block mb-1.5 text-xs tracking-wide">
+          [{number}] {label || ""}
+        </span>
+        <span className="leading-relaxed text-stone-300 block">{displayTooltip}</span>
+      </div>
+    ) : null;
+
   if (label) {
     return (
       <>
         <span
           ref={badgeRef}
           className="inline cursor-pointer"
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
+          onMouseEnter={show}
+          onMouseLeave={hideDelayed}
+          onClick={handleClick}
         >
           <span className="text-emerald-700 dark:text-emerald-400 font-medium text-[0.95em]">
             {label}
           </span>
           <sup className="citation-sup">{number}</sup>
         </span>
-        {isVisible && <TooltipContent />}
+        <TooltipPortal />
       </>
     );
   }
 
-  // No label - just superscript number
   return (
     <>
       <sup
         ref={badgeRef}
         className="citation-sup"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onMouseEnter={show}
+        onMouseLeave={hideDelayed}
+        onClick={handleClick}
       >
         {number}
       </sup>
-      {isVisible && <TooltipContent />}
+      <TooltipPortal />
     </>
   );
 }
