@@ -10,6 +10,13 @@ import {
   deleteSession,
   ChatSession,
 } from "@/lib/chatStorage";
+import InvitationModal from "@/components/InvitationModal";
+import {
+  hasReachedLimit,
+  incrementQuestionCount,
+  setUnlocked,
+  QUESTION_LIMIT_VALUE,
+} from "@/lib/questionLimit";
 
 // Re-export types for backward compatibility
 export type { Message, Reference } from "@/lib/types";
@@ -19,6 +26,7 @@ export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [showInvitationModal, setShowInvitationModal] = useState(false);
 
   // Refresh sessions list
   const refreshSessions = () => {
@@ -52,9 +60,24 @@ export default function Home() {
     refreshSessions();
   };
 
+  // Handle invitation success
+  const handleInvitationSuccess = () => {
+    setUnlocked();
+    setShowInvitationModal(false);
+  };
+
   // Handle send from landing - create session and navigate
   const handleSend = (message: string) => {
     if (!message.trim()) return;
+
+    // Check question limit
+    if (hasReachedLimit()) {
+      setShowInvitationModal(true);
+      return;
+    }
+
+    // Increment count before navigating
+    incrementQuestionCount();
 
     // Create new session
     const newId = createNewSession();
@@ -98,6 +121,13 @@ export default function Home() {
           <LandingView onSend={handleSend} disabled={false} />
         </div>
       </div>
+      {showInvitationModal && (
+        <InvitationModal
+          onSuccess={handleInvitationSuccess}
+          questionsUsed={QUESTION_LIMIT_VALUE}
+          questionLimit={QUESTION_LIMIT_VALUE}
+        />
+      )}
     </div>
   );
 }
