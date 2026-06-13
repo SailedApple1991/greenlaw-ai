@@ -14,6 +14,7 @@ import asyncio
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from ragflow_sdk import RAGFlow
+from ragflow_sdk.modules.chat import Chat
 import logging
 from dotenv import load_dotenv
 import requests as http_requests
@@ -114,18 +115,17 @@ def get_ragflow_assistant():
     if _chat_assistant is None:
         logger.info(f"Getting Chat Assistant: {RAGFLOW_CHAT_ID}")
 
-        # List all chats and find the one matching our ID
-        # Note: RAGFlow SDK doesn't have get_chat(), use list_chats() instead
-        chats = _ragflow_client.list_chats()
-        _chat_assistant = next((c for c in chats if c.id == RAGFLOW_CHAT_ID), None)
+        # Construct the Chat assistant directly from the known ID instead of
+        # calling list_chats(). The RAGFlow server returns the paginated shape
+        # {"data": {"chats": [...]}}, but ragflow-sdk 0.22.1's list_chats()
+        # iterates `res["data"]` expecting a bare list — on the dict it walks
+        # the keys ("chats"), passes that string into Chat(), and crashes with
+        # "'str' object has no attribute 'items'". We only need a Chat whose
+        # .id == RAGFLOW_CHAT_ID so create_session() can POST to
+        # /chats/{id}/sessions, so build it directly and skip the broken list.
+        _chat_assistant = Chat(_ragflow_client, {"id": RAGFLOW_CHAT_ID})
 
-        if not _chat_assistant:
-            raise ValueError(
-                f"Chat Assistant with ID {RAGFLOW_CHAT_ID} not found. "
-                f"Available chats: {[c.id for c in chats]}"
-            )
-
-        logger.info(f"Found Chat Assistant: {_chat_assistant.name}")
+        logger.info(f"Initialized Chat Assistant for ID: {RAGFLOW_CHAT_ID}")
 
     return _chat_assistant
 
