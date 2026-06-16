@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Generator
 import os
 import json
+import re
 import time
 import asyncio
 import threading
@@ -20,6 +21,22 @@ from dotenv import load_dotenv
 import requests as http_requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+# RAGFlow deep-research streams its step-by-step progress (every "Searching by ...",
+# sufficiency check and sub-question) inside <retrieving>...</retrieving> markers in
+# the answer. We strip those so the chat UI shows ONLY the final answer; the frontend's
+# existing loading spinner covers the search wait. The sub-question search still runs.
+_RETRIEVING_RE = re.compile(r"<retrieving>.*?</retrieving>", re.DOTALL)
+
+
+def strip_retrieving(raw: str) -> str:
+    """Remove completed <retrieving>..</retrieving> blocks and any trailing,
+    not-yet-closed retrieving block from cumulative answer text."""
+    cleaned = _RETRIEVING_RE.sub("", raw)
+    idx = cleaned.find("<retrieving>")
+    if idx != -1:
+        cleaned = cleaned[:idx]
+    return cleaned
 
 # Load environment variables from .env file
 load_dotenv()
@@ -290,7 +307,8 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
         connect_time = time.time() - start_time
         logger.info(f"User [{user_id}] connected to RAGFlow in {connect_time:.2f}s, starting to receive stream...")
 
-        full_content = ""
+        full_content = ""      # raw cumulative answer from RAGFlow (may contain <retrieving>)
+        clean_sent = ""        # cleaned text already forwarded to the client
         chunk_count = 0
         last_chunk_time = time.time()
         done_sent = False
@@ -354,20 +372,23 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
                 json_str = line_str[5:].strip()
                 if json_str == '[DONE]':
                     done_sent = True
-                    yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
+                    yield f"data: {json.dumps({'done': True, 'content': strip_retrieving(full_content)})}\n\n"
                     break
 
                 try:
                     chunk_data = json.loads(json_str)
                     answer = extract_answer(chunk_data)
                     if done_sent:
-                        yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
+                        yield f"data: {json.dumps({'done': True, 'content': strip_retrieving(full_content)})}\n\n"
                         break
                     if answer is None:
                         continue
-                    new_content = extract_new_content(answer)
-                    if new_content:
-                        yield f"data: {json.dumps({'chunk': new_content, 'done': False})}\n\n"
+                    extract_new_content(answer)  # update raw full_content
+                    clean_full = strip_retrieving(full_content)
+                    delta = clean_full[len(clean_sent):]
+                    if delta:
+                        clean_sent = clean_full
+                        yield f"data: {json.dumps({'chunk': delta, 'done': False})}\n\n"
                 except json.JSONDecodeError:
                     logger.warning(f"Failed to parse JSON: {json_str[:100]}...")
                     continue
@@ -377,13 +398,16 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
                     chunk_data = json.loads(line_str)
                     answer = extract_answer(chunk_data)
                     if done_sent:
-                        yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
+                        yield f"data: {json.dumps({'done': True, 'content': strip_retrieving(full_content)})}\n\n"
                         break
                     if answer is None:
                         continue
-                    new_content = extract_new_content(answer)
-                    if new_content:
-                        yield f"data: {json.dumps({'chunk': new_content, 'done': False})}\n\n"
+                    extract_new_content(answer)  # update raw full_content
+                    clean_full = strip_retrieving(full_content)
+                    delta = clean_full[len(clean_sent):]
+                    if delta:
+                        clean_sent = clean_full
+                        yield f"data: {json.dumps({'chunk': delta, 'done': False})}\n\n"
                 except json.JSONDecodeError:
                     continue
 
@@ -393,7 +417,7 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
 
         # Always send done signal if we have content and haven't sent it yet
         if full_content and not done_sent:
-            yield f"data: {json.dumps({'done': True, 'content': full_content})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'content': strip_retrieving(full_content)})}\n\n"
 
     except http_requests.exceptions.Timeout as e:
         elapsed = time.time() - start_time
@@ -524,7 +548,7 @@ async def chat(request: ChatRequest):
 
             if result.get("code") == 0:
                 data = result.get("data", {})
-                content = data.get("answer", "")
+                content = strip_retrieving(data.get("answer", ""))
                 references_data = data.get("reference", {})
             else:
                 raise ValueError(f"RAGFlow API error: {result.get('message', 'Unknown error')}")
