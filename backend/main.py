@@ -22,20 +22,32 @@ import requests as http_requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-# RAGFlow deep-research streams its step-by-step progress (every "Searching by ...",
-# sufficiency check and sub-question) inside <retrieving>...</retrieving> markers in
-# the answer. We strip those so the chat UI shows ONLY the final answer; the frontend's
-# existing loading spinner covers the search wait. The sub-question search still runs.
-_RETRIEVING_RE = re.compile(r"<retrieving>.*?</retrieving>", re.DOTALL)
+# RAGFlow streams two kinds of non-answer content inside the answer text that the
+# chat UI must not display as the reply:
+#  * deep-research progress: <retrieving>...</retrieving>  (sub-query/sufficiency steps)
+#  * reasoning-model chain-of-thought: <think>...</think>  (e.g. qwen3.7-max emits its
+#    reasoning_content, which RAGFlow wraps in <think>). Reasoning models would otherwise
+#    dump their whole "Thinking Process" before the answer.
+# We strip both so the UI shows ONLY the final answer; the frontend's loading spinner
+# covers the wait. The retrieval/reasoning still runs server-side.
+_STRIP_BLOCK_RES = [
+    re.compile(r"<retrieving>.*?</retrieving>", re.DOTALL),
+    re.compile(r"<think>.*?</think>", re.DOTALL),
+]
+_STRIP_OPEN_TAGS = ("<retrieving>", "<think>")
 
 
 def strip_retrieving(raw: str) -> str:
-    """Remove completed <retrieving>..</retrieving> blocks and any trailing,
-    not-yet-closed retrieving block from cumulative answer text."""
-    cleaned = _RETRIEVING_RE.sub("", raw)
-    idx = cleaned.find("<retrieving>")
-    if idx != -1:
-        cleaned = cleaned[:idx]
+    """Remove completed <retrieving>/<think> blocks and any trailing, not-yet-closed
+    block (so nothing leaks while the model is mid-reasoning/mid-search) from the
+    cumulative answer text."""
+    cleaned = raw
+    for rx in _STRIP_BLOCK_RES:
+        cleaned = rx.sub("", cleaned)
+    # Drop from the earliest still-open marker onward (block not closed yet).
+    cut = min((cleaned.find(t) for t in _STRIP_OPEN_TAGS if cleaned.find(t) != -1), default=-1)
+    if cut != -1:
+        cleaned = cleaned[:cut]
     return cleaned
 
 # Load environment variables from .env file
