@@ -120,8 +120,12 @@ function CitationSup({
   React.useEffect(() => {
     if (!isVisible) return;
     const handleScroll = () => setIsVisible(false);
-    window.addEventListener("scroll", handleScroll, { passive: true, capture: true });
-    return () => window.removeEventListener("scroll", handleScroll, { capture: true });
+    window.addEventListener("scroll", handleScroll, {
+      passive: true,
+      capture: true,
+    });
+    return () =>
+      window.removeEventListener("scroll", handleScroll, { capture: true });
   }, [isVisible]);
 
   const TooltipPortal = () =>
@@ -136,7 +140,9 @@ function CitationSup({
         <span className="font-semibold text-emerald-400 block mb-1.5 text-xs tracking-wide">
           [{number}] {label || ""}
         </span>
-        <span className="leading-relaxed text-stone-300 block">{displayTooltip}</span>
+        <span className="leading-relaxed text-stone-300 block">
+          {displayTooltip}
+        </span>
       </div>
     ) : null;
 
@@ -560,12 +566,28 @@ function CollapsibleBackendReferences({
   );
 }
 
-export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
+export default function ChatBubble({
+  message,
+  delay = 0,
+  isStreaming = false,
+}: ChatBubbleProps & { isStreaming?: boolean }) {
   const isUser = message.role === "user";
 
   const parsedContent = useMemo(() => {
     if (isUser) {
       return null;
+    }
+
+    // While streaming, do NOT split out / render the References section. Running
+    // parseCitations on a partial response can mis-detect the references block and
+    // render it out of place (e.g. above the body). Show raw text during streaming;
+    // parse + render the collapsible references only on the final, complete message.
+    if (isStreaming) {
+      return {
+        mainContent: message.content,
+        references: [] as ParsedReference[],
+        citationMap: new Map<string, ParsedReference>(),
+      };
     }
 
     const { mainContent, references, citationMap } = parseCitations(
@@ -587,7 +609,7 @@ export default function ChatBubble({ message, delay = 0 }: ChatBubbleProps) {
     }
 
     return { mainContent, references, citationMap };
-  }, [message.content, message.references, isUser]);
+  }, [message.content, message.references, isUser, isStreaming]);
 
   // User message
   if (isUser) {

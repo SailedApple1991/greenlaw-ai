@@ -546,6 +546,7 @@ export default function ChatPage() {
                       content: typewriter.displayedText,
                     }}
                     delay={0}
+                    isStreaming={true}
                   />
                 )}
                 {/* Loading indicator - show when waiting for first chunk or non-streaming */}
@@ -588,13 +589,16 @@ export default function ChatPage() {
         </main>
 
         {/* Input fixed at bottom */}
-        {!isUnlocked() && getRemainingQuestions() <= 5 && getRemainingQuestions() > 0 && (
-          <div className="text-center py-1">
-            <span className="text-xs text-stone-400 dark:text-gray-600">
-              {getRemainingQuestions()} free question{getRemainingQuestions() !== 1 ? "s" : ""} remaining
-            </span>
-          </div>
-        )}
+        {!isUnlocked() &&
+          getRemainingQuestions() <= 5 &&
+          getRemainingQuestions() > 0 && (
+            <div className="text-center py-1">
+              <span className="text-xs text-stone-400 dark:text-gray-600">
+                {getRemainingQuestions()} free question
+                {getRemainingQuestions() !== 1 ? "s" : ""} remaining
+              </span>
+            </div>
+          )}
         <div className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4">
           <div className="mx-auto max-w-3xl">
             <MessageInput
