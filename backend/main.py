@@ -323,6 +323,7 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
         clean_sent = ""        # cleaned text already forwarded to the client
         chunk_count = 0
         last_chunk_time = time.time()
+        last_heartbeat = time.time()
         done_sent = False
 
         def extract_answer(chunk_data: dict) -> str | None:
@@ -401,6 +402,12 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
                     if delta:
                         clean_sent = clean_full
                         yield f"data: {json.dumps({'chunk': delta, 'done': False})}\n\n"
+                    elif current_time - last_heartbeat > 5:
+                        # Inside the stripped <retrieving>/<think> phase (deep research):
+                        # emit an SSE comment heartbeat so the connection doesn't idle-
+                        # timeout during the long silent wait. Clients ignore non-data lines.
+                        last_heartbeat = current_time
+                        yield ": ping\n\n"
                 except json.JSONDecodeError:
                     logger.warning(f"Failed to parse JSON: {json_str[:100]}...")
                     continue
@@ -420,6 +427,12 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
                     if delta:
                         clean_sent = clean_full
                         yield f"data: {json.dumps({'chunk': delta, 'done': False})}\n\n"
+                    elif current_time - last_heartbeat > 5:
+                        # Inside the stripped <retrieving>/<think> phase (deep research):
+                        # emit an SSE comment heartbeat so the connection doesn't idle-
+                        # timeout during the long silent wait. Clients ignore non-data lines.
+                        last_heartbeat = current_time
+                        yield ": ping\n\n"
                 except json.JSONDecodeError:
                     continue
 
