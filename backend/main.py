@@ -36,6 +36,13 @@ _STRIP_BLOCK_RES = [
 ]
 _STRIP_OPEN_TAGS = ("<retrieving>", "<think>")
 
+# RAGFlow's /chats/<id>/completions stream ends with a terminal decorate_answer
+# frame that re-sends the COMPLETE, reformatted answer (citations inserted) in a
+# single shot. That frame is NOT a continuation of the streamed token deltas, so
+# appending it duplicates the entire answer. We treat any divergent frame at least
+# this large as the terminal full answer and REPLACE rather than append.
+_FINAL_FRAME_MIN_CHARS = int(os.getenv("RAGFLOW_FINAL_FRAME_MIN_CHARS", "200"))
+
 
 def strip_retrieving(raw: str) -> str:
     """Remove completed <retrieving>/<think> blocks and any trailing, not-yet-closed
@@ -346,26 +353,43 @@ def stream_ragflow_response(session_id: str, message: str, user_id: str):
 
         def extract_new_content(answer: str) -> str:
             """
-            Auto-detect cumulative vs delta streaming format.
-            - Cumulative: answer grows each chunk ("He" → "Hel" → "Hell" → "Hello")
+            Reconcile a RAGFlow answer frame against the accumulated text.
+
+            RAGFlow's /chats/<id>/completions stream mixes frame shapes:
+            - Cumulative: answer grows each chunk ("He" → "Hel" → "Hello")
             - Delta: answer is each new token ("He" → "l" → "l" → "o")
+            - Terminal: a final decorate_answer frame re-sends the COMPLETE,
+              reformatted answer (citations inserted) in one shot.
+
+            The terminal frame is not a continuation of the streamed text, so
+            blindly appending it duplicates the whole answer. We detect a large
+            divergent frame and REPLACE it (authoritative final answer); only
+            small divergent frames are real token deltas to append.
             """
             nonlocal full_content
             if not answer:
                 return ""
 
+            if answer == full_content:
+                # Repeated content, skip
+                return ""
             if len(answer) > len(full_content) and answer.startswith(full_content):
                 # Cumulative format: answer contains all previous text + new
                 new_content = answer[len(full_content):]
                 full_content = answer
                 return new_content
-            elif answer == full_content:
-                # Repeated content, skip
+            if full_content.startswith(answer):
+                # Shorter restatement of what we already have, skip
                 return ""
-            else:
-                # Delta format: answer is just the new token
-                full_content += answer
-                return answer
+            if len(answer) >= _FINAL_FRAME_MIN_CHARS:
+                # Terminal decorate_answer frame: complete reformatted answer.
+                # Replace (do NOT append) to avoid duplicating the whole answer.
+                # The done event carries this as the authoritative content.
+                full_content = answer
+                return ""
+            # Genuine forward token delta
+            full_content += answer
+            return answer
 
         for line in response.iter_lines(chunk_size=256):
             if not line:
