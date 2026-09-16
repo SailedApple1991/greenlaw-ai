@@ -138,11 +138,6 @@ const FEATURES = [
     description:
       "Watch answers appear in real time — no waiting for the full response to generate.",
   },
-  {
-    title: "Secure & Private",
-    description:
-      "Your conversations stay private. No data is shared with third parties or used for training.",
-  },
 ];
 
 const REGULATIONS = [
